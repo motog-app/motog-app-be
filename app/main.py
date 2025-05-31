@@ -15,7 +15,7 @@ except Exception as e:
     print(f"Error creating database tables: {e}") # Print any exception
 
 app = FastAPI(
-    title="MotoG Clone API",
+    title="MotoG Clone API - www.gomotog.com",
     description="API for buying and selling used cars and bikes.",
     version="0.1.0"
 )
