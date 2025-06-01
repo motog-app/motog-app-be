@@ -1,32 +1,38 @@
 # backend/app/core/config.py
-from pydantic_settings import BaseSettings
-import os
-from dotenv import load_dotenv
-
-# Load .env file from the backend directory, one level up from core
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-load_dotenv(os.path.join(os.path.dirname(BASE_DIR), ".env"))
-
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import SecretStr, Field
+from typing import Optional
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "a_default_secret_key_if_not_set")
-    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
+    # This is the Pydantic v2 way to configure settings loading:
+    # It tells Pydantic to load from .env, allows case-insensitivity,
+    # and critically, allows for extra fields not explicitly defined here
+    # without raising a validation error.
+    model_config = SettingsConfigDict(env_file='.env', case_sensitive=False, extra='ignore')
 
-    CLOUDINARY_CLOUD_NAME: str = os.getenv("CLOUDINARY_CLOUD_NAME", "")
-    CLOUDINARY_API_KEY: str = os.getenv("CLOUDINARY_API_KEY", "")
-    CLOUDINARY_API_SECRET: str = os.getenv("CLOUDINARY_API_SECRET", "")
+    # Project Settings
+    # Pydantic will now automatically look for PROJECT_NAME in .env or environment variables
+    # and use "MotoG API" as a default if not found.
+    PROJECT_NAME: str = Field("MotoG API", env="PROJECT_NAME")
+    API_V1_STR: str = Field(env="API_V1_STR")
 
-    # New: Google Maps API Key
-    Maps_API_KEY: str = os.getenv("Maps_API_KEY", "")
-    
-    # New: Redis URL
-    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0") # Default for local dev
+    # Database Settings
+    DATABASE_URL: str = Field(..., env="DATABASE_URL") # '...' makes this field required
 
-    class Config:
-        env_file = ".env" # Not strictly needed if load_dotenv is used correctly above
-        case_sensitive = True
+    # JWT Authentication Settings
+    SECRET_KEY: SecretStr = Field(..., env="SECRET_KEY") # Required secret
+    ALGORITHM: str = Field("HS256", env="ALGORITHM")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(30, env="ACCESS_TOKEN_EXPIRE_MINUTES")
 
+    # Cloudinary Settings (Optional, as they might not always be set)
+    CLOUDINARY_CLOUD_NAME: Optional[str] = Field(None, env="CLOUDINARY_CLOUD_NAME")
+    CLOUDINARY_API_KEY: Optional[str] = Field(None, env="CLOUDINARY_API_KEY")
+    CLOUDINARY_API_SECRET: Optional[SecretStr] = Field(None, env="CLOUDINARY_API_SECRET")
+
+    # Google Maps API Key
+    MAPS_API_KEY: Optional[str] = Field(None, env="MAPS_API_KEY") # Renamed to MAPS_API_KEY for consistency
+
+    # Redis URL (with a default for local development)
+    REDIS_URL: str = Field("redis://localhost:6379/0", env="REDIS_URL")
 
 settings = Settings()

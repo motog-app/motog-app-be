@@ -10,7 +10,7 @@ import redis # Import redis
 import json # For serializing/deserializing data to/from Redis
 
 # Initialize Google Maps client (outside the function for efficiency)
-gmaps = googlemaps.Client(key=settings.Maps_API_KEY)
+gmaps = googlemaps.Client(key=settings.MAPS_API_KEY)
 
 # Initialize Redis client (outside the function)
 # decode_responses=True ensures that data retrieved from Redis are Python strings, not bytes

@@ -10,3 +10,12 @@ pip freeze > requirements.txt
 
 #Install from requirements.txt
 pip install -r requirements.txt
+
+#run inside motog-app-be
+find . -name "__pycache__" -exec rm -rf {} +
+
+#if facing warning or error related to bcrypt (install the compatible version)
+- deactivate & re-activate the venv
+- pip uninstall passlib bcrypt
+- pip cache purge
+- pip install passlib==1.7.4 bcrypt==4.0.1
