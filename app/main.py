@@ -43,7 +43,7 @@ app.include_router(listings.router, prefix=settings.API_V1_STR + "/listings", ta
 
 @app.get("/", tags=["Root"])
 async def read_root():
-    return {"message": "Welcome to MotoG Clone API!"}
+    return {"message": "Welcome to MotoG API!"}
 
 @app.get(f"{settings.API_V1_STR}/test")
 def test_api_v1():
