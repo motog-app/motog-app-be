@@ -5,3 +5,4 @@ __pycache__/
 *.db # If you ever use SQLite for testing
 *.sqlite3
 .vscode/
+.DS_Store
