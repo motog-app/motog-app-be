@@ -8,7 +8,7 @@ from app import crud, models, schemas # Absolute imports
 from app.core.security import decode_access_token
 from app.database import get_db
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login") # Full path to login endpoint
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login") # Full path to login endpoint
 
 
 async def get_current_user(

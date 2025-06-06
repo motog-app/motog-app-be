@@ -39,7 +39,8 @@ app.add_middleware(
 
 # Include API routers
 app.include_router(auth.router, prefix=settings.API_V1_STR, tags=["auth"])
-app.include_router(listings.router, prefix=settings.API_V1_STR, tags=["listings"])
+# CORRECTED LINE BELOW: Add "/listings" to the prefix for the listings router
+app.include_router(listings.router, prefix=settings.API_V1_STR + "/listings", tags=["listings"])
 
 @app.get("/", tags=["Root"])
 async def read_root():

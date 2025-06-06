@@ -1,3 +1,4 @@
+# app/schemas.py
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime
@@ -36,9 +37,11 @@ class VehicleListingBase(BaseModel):
     kilometers_driven: int = Field(..., ge=0)
     price: int = Field(..., gt=0)
     city: str = Field(..., min_length=2)
+    latitude: float
+    longitude: float
     seller_phone: str = Field(..., min_length=10, max_length=15) # Basic phone validation
     description: Optional[str] = None
-    primary_image_url: Optional[str] = None
+    # REMOVED: primary_image_url: Optional[str] = None from VehicleListingBase
 
 
 class VehicleListingCreate(VehicleListingBase):
@@ -54,15 +57,20 @@ class VehicleListingUpdate(VehicleListingBase):
     kilometers_driven: Optional[int] = Field(None, ge=0)
     price: Optional[int] = Field(None, gt=0)
     city: Optional[str] = Field(None, min_length=2)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     seller_phone: Optional[str] = Field(None, min_length=10, max_length=15)
+    # ADDED BACK: primary_image_url: Optional[str] = None for updates if needed
+    primary_image_url: Optional[str] = None
 
 
-class VehicleListing(VehicleListingBase): # Schema for reading a listing
+class VehicleListing(VehicleListingBase):
     id: int
     user_id: int
-    owner_email: Optional[EmailStr] = None # To show owner's email, populated in CRUD
-    created_at: datetime
     is_active: bool
+    created_at: datetime
+    primary_image_url: Optional[str] = None # ADDED: This should be here for responses
+    owner_email: Optional[EmailStr] = None # For display purposes
 
     class Config:
         from_attributes = True # Pydantic V2 (was orm_mode = True in V1)

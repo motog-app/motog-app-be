@@ -5,102 +5,106 @@ from typing import List, Any, Optional
 import cloudinary
 import cloudinary.uploader
 
-from app import crud, schemas, models # Absolute imports
+from app import crud, schemas, models
 from app.database import get_db
-from app.dependencies import get_current_active_user # For protected routes
+from app.dependencies import get_current_active_user
 from app.core.config import settings
 
 router = APIRouter()
 
-# Configure Cloudinary
+# Configure Cloudinary - CORRECTED USAGE for API_KEY and API_SECRET
 cloudinary.config(
     cloud_name=settings.CLOUDINARY_CLOUD_NAME,
-    api_key=settings.CLOUDINARY_API_KEY,
-    api_secret=settings.CLOUDINARY_API_SECRET
+    api_key=settings.CLOUDINARY_API_KEY,  # Use directly as it's a string
+    api_secret=settings.CLOUDINARY_API_SECRET.get_secret_value() # Use .get_secret_value() as it's a SecretStr
 )
 
 @router.post("/", response_model=schemas.VehicleListing, status_code=status.HTTP_201_CREATED)
 async def create_listing(
-    # Use Form() for regular fields when mixing with File()
-    vehicle_type: models.VehicleTypeEnum = Form(...),
+    vehicle_type: schemas.VehicleTypeEnum = Form(...),
     make: str = Form(...),
     model: str = Form(...),
     year: int = Form(...),
     kilometers_driven: int = Form(...),
     price: int = Form(...),
     city: str = Form(...),
+    latitude: float = Form(...),
+    longitude: float = Form(...),
     seller_phone: str = Form(...),
     description: Optional[str] = Form(None),
-    primary_image: UploadFile = File(...), # The uploaded image file
+    primary_image: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ) -> Any:
     """
-    Create a new vehicle listing. Requires authentication.
+    Create a new vehicle listing.
     """
-    try:
-        # Upload image to Cloudinary
-        upload_result = cloudinary.uploader.upload(primary_image.file, folder="motoflip_listings")
-        image_url = upload_result.get("secure_url")
+    image_url = None
+    if primary_image:
+        try:
+            upload_result = cloudinary.uploader.upload(primary_image.file)
+            image_url = upload_result.get("secure_url")
+        except Exception as e:
+            print(f"Cloudinary upload error: {e}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Image upload failed: {e}")
 
-        if not image_url:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to upload image to Cloudinary."
-            )
+    listing_in = schemas.VehicleListingCreate(
+        vehicle_type=vehicle_type,
+        make=make,
+        model=model,
+        year=year,
+        kilometers_driven=kilometers_driven,
+        price=price,
+        city=city,
+        latitude=latitude,
+        longitude=longitude,
+        seller_phone=seller_phone,
+        description=description,
+        primary_image_url=image_url,
+    )
 
-        # Create Pydantic schema instance from form data and image URL
-        listing_in = schemas.VehicleListingCreate(
-            vehicle_type=vehicle_type,
-            make=make,
-            model=model,
-            year=year,
-            kilometers_driven=kilometers_driven,
-            price=price,
-            city=city,
-            seller_phone=seller_phone,
-            description=description,
-            primary_image_url=image_url
-        )
-
-        listing = crud.create_vehicle_listing(db=db, listing=listing_in, user_id=current_user.id)
-        # Populate owner_email for response
-        listing.owner_email = current_user.email
-        return listing
-    except Exception as e:
-        # Log the error for debugging
-        print(f"Error creating listing: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while creating the listing: {e}"
-        )
+    listing = crud.create_vehicle_listing(
+        db=db,
+        listing=listing_in,
+        user_id=current_user.id,
+    )
+    return listing
 
 
 @router.get("/", response_model=List[schemas.VehicleListing])
 def read_listings(
+    db: Session = Depends(get_db),
     skip: int = 0,
     limit: int = 10,
-    q: Optional[str] = None,
     city: Optional[str] = None,
-    vehicle_type: Optional[models.VehicleTypeEnum] = None,
-    db: Session = Depends(get_db)
+    vehicle_type: Optional[schemas.VehicleTypeEnum] = None,
+    min_price: Optional[int] = None,
+    max_price: Optional[int] = None,
+    min_year: Optional[int] = None,
+    max_year: Optional[int] = None,
+    min_km_driven: Optional[int] = None,
+    max_km_driven: Optional[int] = None
 ) -> Any:
     """
-    Retrieve multiple vehicle listings with optional filters and search.
+    Retrieve multiple vehicle listings with optional filters.
     """
-    listings = crud.get_listings(
-        db,
+    listings = crud.get_vehicle_listings(
+        db=db,
         skip=skip,
         limit=limit,
-        q=q,
         city=city,
-        vehicle_type=vehicle_type
+        vehicle_type=vehicle_type,
+        min_price=min_price,
+        max_price=max_price,
+        min_year=min_year,
+        max_year=max_year,
+        min_km_driven=min_km_driven,
+        max_km_driven=max_km_driven
     )
-    # Populate owner_email for response schema
     for listing in listings:
-        if listing.owner: # Check if owner relationship is loaded
+        if listing.owner:
             listing.owner_email = listing.owner.email
-        else: # If not loaded, fetch it (less efficient, but handles cases where owner isn't eagerly loaded)
+        else:
             owner = crud.get_user(db, user_id=listing.user_id)
             if owner:
                 listing.owner_email = owner.email
@@ -115,15 +119,13 @@ def read_listing(listing_id: int, db: Session = Depends(get_db)) -> Any:
     listing = crud.get_listing_by_id(db, listing_id=listing_id)
     if not listing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
-    
-    # Populate owner_email for response schema
+
     if listing.owner:
         listing.owner_email = listing.owner.email
     else:
         owner = crud.get_user(db, user_id=listing.user_id)
         if owner:
             listing.owner_email = owner.email
-
     return listing
 
 
@@ -136,15 +138,6 @@ def delete_listing_by_id(
     """
     Deactivate (soft delete) a vehicle listing by its owner.
     """
-    listing = crud.get_listing_by_id(db, listing_id=listing_id)
+    listing = crud.delete_listing(db, listing_id=listing_id, user_id=current_user.id)
     if not listing:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
-    
-    if listing.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to delete this listing"
-        )
-    
-    crud.delete_listing(db, listing_id=listing_id, user_id=current_user.id)
-    return # FastAPI handles 204 No Content for None return
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found or not authorized")

@@ -1,42 +1,48 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text, Enum as SQLAlchemyEnum
+# app/models.py
+from sqlalchemy import Column, Integer, String, DateTime, Float, Boolean, ForeignKey, Enum
 from sqlalchemy.orm import relationship
-from .database import Base
-from datetime import datetime
+from sqlalchemy.sql import func
+from app.database import Base # Ensure Base is correctly imported
 import enum
 
+# Define VehicleTypeEnum here if it's not already in its own file
+class VehicleTypeEnum(str, enum.Enum):
+    car = "car"
+    bike = "bike"
+
+# User SQLAlchemy ORM Model
 class User(Base):
     __tablename__ = "users"
-
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    is_active = Column(Boolean, default=True) # Can be used to deactivate users
+    email = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    # Define relationship to listings
     listings = relationship("VehicleListing", back_populates="owner")
 
-
-class VehicleTypeEnum(str, enum.Enum):
-    CAR = "car"
-    BIKE = "bike"
-
-
+# VehicleListing SQLAlchemy ORM Model
 class VehicleListing(Base):
-    __tablename__ = "vehicle_listings"
+    __tablename__ = "vehicle_listings" # Ensure this matches your actual table name
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    vehicle_type = Column(SQLAlchemyEnum(VehicleTypeEnum), nullable=False)
-    make = Column(String, index=True, nullable=False)
-    model = Column(String, index=True, nullable=False)
-    year = Column(Integer, nullable=False)
-    kilometers_driven = Column(Integer, nullable=False)
-    price = Column(Integer, nullable=False)
-    city = Column(String, index=True, nullable=False)
-    seller_phone = Column(String, nullable=False)
-    description = Column(Text, nullable=True)
-    primary_image_url = Column(String, nullable=True) # Store URL of the image
-    created_at = Column(DateTime, default=datetime.utcnow)
-    is_active = Column(Boolean, default=True) # For soft delete or admin approval
+    vehicle_type = Column(Enum(VehicleTypeEnum), index=True) # Use Enum type
+    make = Column(String, index=True)
+    model = Column(String, index=True)
+    year = Column(Integer)
+    kilometers_driven = Column(Integer)
+    price = Column(Integer)
+    city = Column(String, index=True)
+    latitude = Column(Float, nullable=True) # <-- ADDED
+    longitude = Column(Float, nullable=True) # <-- ADDED
+    seller_phone = Column(String)
+    description = Column(String)
+    primary_image_url = Column(String, nullable=True) # URL from Cloudinary
+    is_active = Column(Boolean, default=True) # For soft delete
 
-    owner = relationship("User", back_populates="listings")
+    user_id = Column(Integer, ForeignKey("users.id")) # Assuming 'users' is your users table name
+    owner = relationship("User", back_populates="listings") # Relationship back to User
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
