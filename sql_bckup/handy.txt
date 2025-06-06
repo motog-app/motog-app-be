@@ -19,3 +19,6 @@ find . -name "__pycache__" -exec rm -rf {} +
 - pip uninstall passlib bcrypt
 - pip cache purge
 - pip install passlib==1.7.4 bcrypt==4.0.1
+
+#if facing any env variable related issues try:
+unset DATABASE_URL (env variable name)
