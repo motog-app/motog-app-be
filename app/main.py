@@ -25,8 +25,7 @@ origins = [
     "http://localhost:3000", # Your Next.js frontend origin
     "http://127.0.0.1:3000",  # Another common local development address
     "http://192.168.1.3:3000",
-    # Add your Vercel or other frontend deployment URLs here when deploying
-    # "https://your-deployed-frontend.vercel.app",
+    "https://motog-app-fe.vercel.app"
 ]
 
 app.add_middleware(
