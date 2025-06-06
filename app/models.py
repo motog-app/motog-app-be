@@ -33,7 +33,8 @@ class VehicleListing(Base):
     year = Column(Integer)
     kilometers_driven = Column(Integer)
     price = Column(Integer)
-    city = Column(String, index=True)
+    ori_city = Column(String, index=True)
+    city = Column(String)
     latitude = Column(Float, nullable=True) # <-- ADDED
     longitude = Column(Float, nullable=True) # <-- ADDED
     seller_phone = Column(String)

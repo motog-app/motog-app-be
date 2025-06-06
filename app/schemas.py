@@ -36,17 +36,15 @@ class VehicleListingBase(BaseModel):
     year: int = Field(..., gt=1950, lt=datetime.now().year + 2) # Sensible year range
     kilometers_driven: int = Field(..., ge=0)
     price: int = Field(..., gt=0)
+    ori_city: str = Field(..., min_length=2)
     city: str = Field(..., min_length=2)
-    latitude: float
-    longitude: float
     seller_phone: str = Field(..., min_length=10, max_length=15) # Basic phone validation
     description: Optional[str] = None
-    # REMOVED: primary_image_url: Optional[str] = None from VehicleListingBase
+    primary_image_url: Optional[str] = None
 
 
 class VehicleListingCreate(VehicleListingBase):
     pass # All fields inherited from VehicleListingBase are needed for creation by user
-
 
 class VehicleListingUpdate(VehicleListingBase):
     # For updates, make all fields optional if needed, or define specific update schema
@@ -56,11 +54,10 @@ class VehicleListingUpdate(VehicleListingBase):
     year: Optional[int] = Field(None, gt=1950, lt=datetime.now().year + 2)
     kilometers_driven: Optional[int] = Field(None, ge=0)
     price: Optional[int] = Field(None, gt=0)
+    ori_city: Optional[str] = Field(None, min_length=2) # take care in frontend - don't give the option to update ori_city
     city: Optional[str] = Field(None, min_length=2)
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
     seller_phone: Optional[str] = Field(None, min_length=10, max_length=15)
-    # ADDED BACK: primary_image_url: Optional[str] = None for updates if needed
+    description: Optional[str] = Field(None, min_length=1, max_length=250)
     primary_image_url: Optional[str] = None
 
 

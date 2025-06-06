@@ -28,8 +28,8 @@ async def create_listing(
     kilometers_driven: int = Form(...),
     price: int = Form(...),
     city: str = Form(...),
-    latitude: float = Form(...),
-    longitude: float = Form(...),
+    # latitude: float = Form(...),
+    # longitude: float = Form(...),
     seller_phone: str = Form(...),
     description: Optional[str] = Form(None),
     primary_image: UploadFile = File(...),
@@ -55,9 +55,10 @@ async def create_listing(
         year=year,
         kilometers_driven=kilometers_driven,
         price=price,
+        ori_city=city,
         city=city,
-        latitude=latitude,
-        longitude=longitude,
+        # latitude=latitude,
+        # longitude=longitude,
         seller_phone=seller_phone,
         description=description,
         primary_image_url=image_url,
@@ -141,3 +142,21 @@ def delete_listing_by_id(
     listing = crud.delete_listing(db, listing_id=listing_id, user_id=current_user.id)
     if not listing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found or not authorized")
+    
+
+@router.put("/listings/{listing_id}", response_model=schemas.VehicleListing)
+def update_listing(
+    listing_id: int,
+    listing_in: schemas.VehicleListingUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user),
+):
+    update_listing = crud.update_vehicle_listing(
+        db=db,
+        listing_id=listing_id,
+        listing_in=listing_in,
+        user_id=current_user.id
+    )
+    if not update_listing:
+        raise HTTPException(status_code=404, detail="Listing not Found or Unauthorised")
+    return update_listing
