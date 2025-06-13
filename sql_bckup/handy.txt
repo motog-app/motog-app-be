@@ -24,3 +24,5 @@ find . -name "__pycache__" -exec rm -rf {} +
 unset DATABASE_URL (env variable name)
 
 #branch rule test
+
+#deploy test
