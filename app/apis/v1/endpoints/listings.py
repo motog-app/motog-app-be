@@ -105,6 +105,7 @@ def read_listings(
         max_km_driven=max_km_driven
     )
     for listing in listings:
+        listing.rc_details = listing.verification.raw_data
         if listing.owner:
             listing.owner_email = listing.owner.email
         else:
@@ -129,6 +130,7 @@ def read_listing(listing_id: int, db: Session = Depends(get_db)) -> Any:
         owner = crud.get_user(db, user_id=listing.user_id)
         if owner:
             listing.owner_email = owner.email
+    listing.rc_details = listing.verification.raw_data
     return listing
 
 

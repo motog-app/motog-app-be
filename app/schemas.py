@@ -1,6 +1,6 @@
 # app/schemas.py
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime
 from .models import VehicleTypeEnum # Import from your models
 from fastapi import UploadFile, File
@@ -70,6 +70,7 @@ class VehicleListing(VehicleListingBase):
     created_at: datetime
     primary_image_url: Optional[str] = None # ADDED: This should be here for responses
     owner_email: Optional[EmailStr] = None # For display purposes
+    rc_details: Optional[Any] = None
 
     class Config:
         from_attributes = True

@@ -106,8 +106,6 @@ def get_vehicle_listings(
 ):
     query = db.query(models.VehicleListing).filter(models.VehicleListing.is_active == True)
 
-    print(query)
-
     if city:
         search_term = f"%{city.lower()}%"
         query = query.filter(models.VehicleListing.city.ilike(search_term))
