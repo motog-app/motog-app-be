@@ -20,9 +20,12 @@ find . -name "__pycache__" -exec rm -rf {} +
 - pip cache purge
 - pip install passlib==1.7.4 bcrypt==4.0.1
 
-#if facing any env variable related issues try:
+#if facing any env variable related issues try to unset the env variable:
 unset DATABASE_URL (env variable name)
 
 #branch rule test
 
 #deploy test - 2
+
+#Test data for Cashfree
+RC - HJ01ME5678

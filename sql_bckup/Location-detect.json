@@ -1,0 +1,16 @@
+{
+    "placeId": "ChIJ25Bj8VsmSTcRJFQ8Jq6aSRk",
+    "structuredFormat": {
+        "mainText": {
+            "text": "Imphal",
+            "matches": [
+                {
+                    "endOffset": 6
+                }
+            ]
+        },
+        "secondaryText": {
+            "text": "Manipur, India"
+        }
+    }
+}

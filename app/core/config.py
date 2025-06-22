@@ -34,5 +34,9 @@ class Settings(BaseSettings):
 
     # Redis URL (with a default for local development)
     REDIS_URL: str = Field("redis://localhost:6379/0", env="REDIS_URL")
+    
+    CASHFREE_API_URL: Optional[str] = Field(None, env="CASHFREE_API_URL")
+    CASHFREE_CLIENT_ID: Optional[str] = Field(None, env="CASHFREE_CLIENT_ID")
+    CASHFREE_CLIENT_SECRET: Optional[str] = Field(None, env="CASHFREE_CLIENT_SECRET")
 
 settings = Settings()

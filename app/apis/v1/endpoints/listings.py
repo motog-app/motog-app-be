@@ -22,9 +22,10 @@ cloudinary.config(
 @router.post("/", response_model=schemas.VehicleListing, status_code=status.HTTP_201_CREATED)
 async def create_listing(
     vehicle_type: schemas.VehicleTypeEnum = Form(...),
-    make: str = Form(...),
-    model: str = Form(...),
-    year: int = Form(...),
+    reg_no: str = Form(...),
+    # make: str = Form(...),
+    # model: str = Form(...),
+    # year: int = Form(...),
     kilometers_driven: int = Form(...),
     price: int = Form(...),
     city: str = Form(...),
@@ -50,12 +51,13 @@ async def create_listing(
 
     listing_in = schemas.VehicleListingCreate(
         vehicle_type=vehicle_type,
-        make=make,
-        model=model,
-        year=year,
+        reg_no=reg_no,
+        # make=make,
+        # model=model,
+        # year=year,
         kilometers_driven=kilometers_driven,
         price=price,
-        ori_city=city,
+        usr_inp_city=city,
         city=city,
         # latitude=latitude,
         # longitude=longitude,

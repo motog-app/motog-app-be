@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.apis.v1.endpoints import auth, listings
+from app.apis.v1.endpoints import auth, listings, vehicle_verification
 from app.core.config import settings
 
 # Create database tables
@@ -39,7 +39,9 @@ app.add_middleware(
 # Include API routers
 app.include_router(auth.router, prefix=settings.API_V1_STR, tags=["auth"])
 # CORRECTED LINE BELOW: Add "/listings" to the prefix for the listings router
+# app.include_router(listings.router, prefix=settings.API_V1_STR + "/listings", tags=["listings"])
 app.include_router(listings.router, prefix=settings.API_V1_STR + "/listings", tags=["listings"])
+app.include_router(vehicle_verification.router, prefix=settings.API_V1_STR, tags=["Vehicle Verification"])
 
 @app.get("/", tags=["Root"])
 async def read_root():
