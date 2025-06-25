@@ -148,7 +148,7 @@ def delete_listing_by_id(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found or not authorized")
     
 
-@router.put("/listings/{listing_id}", response_model=schemas.VehicleListing)
+@router.put("/{listing_id}", response_model=schemas.VehicleListing)
 def update_listing(
     listing_id: int,
     listing_in: schemas.VehicleListingUpdate,
