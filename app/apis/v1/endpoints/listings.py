@@ -16,8 +16,10 @@ router = APIRouter()
 cloudinary.config(
     cloud_name=settings.CLOUDINARY_CLOUD_NAME,
     api_key=settings.CLOUDINARY_API_KEY,  # Use directly as it's a string
-    api_secret=settings.CLOUDINARY_API_SECRET.get_secret_value() # Use .get_secret_value() as it's a SecretStr
+    # Use .get_secret_value() as it's a SecretStr
+    api_secret=settings.CLOUDINARY_API_SECRET.get_secret_value()
 )
+
 
 @router.post("/", response_model=schemas.VehicleListing, status_code=status.HTTP_201_CREATED)
 async def create_listing(
@@ -47,7 +49,8 @@ async def create_listing(
             image_url = upload_result.get("secure_url")
         except Exception as e:
             print(f"Cloudinary upload error: {e}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Image upload failed: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Image upload failed: {e}")
 
     listing_in = schemas.VehicleListingCreate(
         vehicle_type=vehicle_type,
@@ -122,7 +125,8 @@ def read_listing(listing_id: int, db: Session = Depends(get_db)) -> Any:
     """
     listing = crud.get_listing_by_id(db, listing_id=listing_id)
     if not listing:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
 
     if listing.owner:
         listing.owner_email = listing.owner.email
@@ -143,10 +147,12 @@ def delete_listing_by_id(
     """
     Deactivate (soft delete) a vehicle listing by its owner.
     """
-    listing = crud.delete_listing(db, listing_id=listing_id, user_id=current_user.id)
+    listing = crud.delete_listing(
+        db, listing_id=listing_id, user_id=current_user.id)
     if not listing:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found or not authorized")
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Listing not found or not authorized")
+
 
 @router.put("/{listing_id}", response_model=schemas.VehicleListing)
 def update_listing(
@@ -162,5 +168,72 @@ def update_listing(
         user_id=current_user.id
     )
     if not update_listing:
-        raise HTTPException(status_code=404, detail="Listing not Found or Unauthorised")
+        raise HTTPException(
+            status_code=404, detail="Listing not Found or Unauthorised")
     return update_listing
+
+
+@router.post("/{listing_id}/images", response_model=List[str])
+async def upload_listing_images(
+    listing_id: int,
+    files: List[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    listing = crud.get_listing_by_id(db, listing_id)
+    if not listing or listing.user_id != current_user.id:
+        raise HTTPException(
+            status_code=404, detail="Listing not found or unauthorized")
+
+    existing = crud.get_images_for_listing(db, listing_id)
+    if len(existing) + len(files) > 5:
+        raise HTTPException(
+            status_code=400, detail="You can only upload up to 5 images per listing")
+
+    urls = []
+    for file in files:
+        result = cloudinary.uploader.upload(file.file)
+        url = result.get("secure_url")
+        urls.append(url)
+
+    crud.add_listing_images(db, listing_id, urls)
+    return urls
+
+
+@router.delete("/images/{image_id}", status_code=204)
+def delete_listing_image(
+    image_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    image = crud.get_listing_image(db, image_id)
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    listing = crud.get_listing_by_id(db, image.listing_id)
+    if not listing or listing.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    crud.delete_listing_image(db, image_id)
+    return
+
+
+@router.put("/images/{image_id}", response_model=str)
+async def update_listing_image(
+    image_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    image = crud.get_listing_image(db, image_id)
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    listing = crud.get_listing_by_id(db, image.listing_id)
+    if not listing or listing.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    result = cloudinary.uploader.upload(file.file)
+    updated = crud.update_listing_image_url(
+        db, image_id, result.get("secure_url"))
+    return updated.url

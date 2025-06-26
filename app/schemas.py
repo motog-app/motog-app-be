@@ -36,7 +36,16 @@ class TokenData(BaseModel):
     email: Optional[str] = None
 
 
+class ListingImage(BaseModel):
+    id: int
+    url: str
+
+    class Config:
+        from_attributes = True
+
 # --- Vehicle Listing Schemas ---
+
+
 class VehicleListingBase(BaseModel):
     vehicle_type: VehicleTypeEnum
     reg_no: str = Field(..., min_length=7, max_length=10)
@@ -81,6 +90,7 @@ class VehicleListing(VehicleListingBase):
     primary_image_url: Optional[str] = None
     owner_email: Optional[EmailStr] = None  # For display purposes
     rc_details: Optional[Any] = None
+    images: List[ListingImage] = []
 
     class Config:
         from_attributes = True

@@ -104,7 +104,8 @@ def get_vehicle_listings(
     min_km_driven: Optional[int] = None,
     max_km_driven: Optional[int] = None
 ):
-    query = db.query(models.VehicleListing).filter(models.VehicleListing.is_active == True)
+    query = db.query(models.VehicleListing).filter(
+        models.VehicleListing.is_active == True)
 
     if city:
         search_term = f"%{city.lower()}%"
@@ -231,3 +232,40 @@ def create_verification(db: Session, reg_no: str, status: str, raw_data: dict):
     db.commit()
     db.refresh(verification)
     return verification
+
+
+def add_listing_images(db: Session, listing_id: int, image_urls: List[str]) -> List[models.ListingImage]:
+    images = []
+    for url in image_urls:
+        img = models.ListingImage(listing_id=listing_id, url=url)
+        db.add(img)
+        images.append(img)
+    db.commit()
+    return images
+
+
+def get_images_for_listing(db: Session, listing_id: int) -> List[models.ListingImage]:
+    return db.query(models.ListingImage).filter_by(listing_id=listing_id).all()
+
+
+def get_listing_image(db: Session, image_id: int) -> Optional[models.ListingImage]:
+    return db.query(models.ListingImage).filter_by(id=image_id).first()
+
+
+def delete_listing_image(db: Session, image_id: int) -> bool:
+    image = db.query(models.ListingImage).filter_by(id=image_id).first()
+    if image:
+        db.delete(image)
+        db.commit()
+        return True
+    return False
+
+
+def update_listing_image_url(db: Session, image_id: int, new_url: str) -> Optional[models.ListingImage]:
+    image = db.query(models.ListingImage).filter_by(id=image_id).first()
+    if image:
+        image.url = new_url
+        db.commit()
+        db.refresh(image)
+        return image
+    return None
