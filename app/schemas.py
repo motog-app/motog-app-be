@@ -36,21 +36,31 @@ class TokenData(BaseModel):
     email: Optional[str] = None
 
 
+class ListingImageCreate(BaseModel):
+    url: str
+    is_primary: bool = False
+
+
+class ListingImage(BaseModel):
+    id: int
+    url: str
+    is_primary: bool = False
+
+    class Config:
+        from_attributes = True
+
 # --- Vehicle Listing Schemas ---
+
+
 class VehicleListingBase(BaseModel):
     vehicle_type: VehicleTypeEnum
     reg_no: str = Field(..., min_length=7, max_length=10)
-    # make: str = Field(..., min_length=2)
-    # model: str = Field(..., min_length=1)
-    # year: int = Field(..., gt=1950, lt=datetime.now().year + 2) # Sensible year range
     kilometers_driven: int = Field(..., ge=0)
     price: int = Field(..., gt=0)
     usr_inp_city: str = Field(..., min_length=2)
     city: str = Field(..., min_length=2)
-    # Basic phone validation
     seller_phone: str = Field(..., min_length=10, max_length=15)
     description: Optional[str] = None
-    primary_image_url: Optional[str] = None
 
 
 class VehicleListingCreate(VehicleListingBase):
@@ -58,18 +68,11 @@ class VehicleListingCreate(VehicleListingBase):
 
 
 class VehicleListingUpdate(BaseModel):
-    # For updates, make all fields optional if needed, or define specific update schema
-    # vehicle_type: Optional[VehicleTypeEnum] = None
-    # make: Optional[str] = Field(None, min_length=2)
-    # model: Optional[str] = Field(None, min_length=1)
-    # year: Optional[int] = Field(None, gt=1950, lt=datetime.now().year + 2)
     kilometers_driven: Optional[int] = Field(None, ge=0)
     price: Optional[int] = Field(None, gt=0)
     city: Optional[str] = Field(None, min_length=2)
-    # city: Optional[str] = Field(None, min_length=2)
     seller_phone: Optional[str] = Field(None, min_length=10, max_length=15)
     description: Optional[str] = Field(None, min_length=1, max_length=250)
-    # primary_image_url: Optional[UploadFile] = File(...) # get it separately
 
 
 class VehicleListing(VehicleListingBase):
@@ -77,10 +80,9 @@ class VehicleListing(VehicleListingBase):
     user_id: int
     is_active: bool
     created_at: datetime
-    # ADDED: This should be here for responses
-    primary_image_url: Optional[str] = None
-    owner_email: Optional[EmailStr] = None  # For display purposes
+    owner_email: Optional[EmailStr] = None
     rc_details: Optional[Any] = None
+    images: List[ListingImage] = []
 
     class Config:
         from_attributes = True
