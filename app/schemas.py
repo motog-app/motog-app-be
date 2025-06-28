@@ -63,8 +63,14 @@ class VehicleListingBase(BaseModel):
     description: Optional[str] = None
 
 
-class VehicleListingCreate(VehicleListingBase):
-    pass  # All fields inherited from VehicleListingBase are needed for creation by user
+class VehicleListingCreate(BaseModel):
+    vehicle_type: VehicleTypeEnum
+    reg_no: str = Field(..., example="HJ01ME5678", min_length=7, max_length=10)
+    kilometers_driven: int = Field(..., ge=0)
+    price: int = Field(..., gt=0)
+    city: str = Field(..., min_length=2)
+    seller_phone: str = Field(..., min_length=10, max_length=15)
+    description: Optional[str] = None
 
 
 class VehicleListingUpdate(BaseModel):
