@@ -82,6 +82,7 @@ def create_vehicle_listing(
         **listing.model_dump(exclude={"city"}),
         user_id=user_id,
         city=location_string,
+        usr_inp_city=listing.city,
         latitude=latitude,
         longitude=longitude
     )

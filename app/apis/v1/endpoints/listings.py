@@ -21,13 +21,7 @@ cloudinary.config(
 
 @router.post("/", response_model=schemas.VehicleListing, status_code=status.HTTP_201_CREATED)
 async def create_listing(
-    vehicle_type: schemas.VehicleTypeEnum = Form(...),
-    reg_no: str = Form(...),
-    kilometers_driven: int = Form(...),
-    price: int = Form(...),
-    city: str = Form(...),
-    seller_phone: str = Form(...),
-    description: Optional[str] = Form(None),
+    listing: schemas.VehicleListingCreate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ) -> Any:
@@ -35,21 +29,27 @@ async def create_listing(
     Create a new vehicle listing.
     """
     listing_in = schemas.VehicleListingCreate(
-        vehicle_type=vehicle_type,
-        reg_no=reg_no,
-        kilometers_driven=kilometers_driven,
-        price=price,
-        usr_inp_city=city,
-        city=city,
-        seller_phone=seller_phone,
-        description=description,
+        vehicle_type=listing.vehicle_type,
+        reg_no=listing.reg_no,
+        kilometers_driven=listing.kilometers_driven,
+        price=listing.price,
+        city=listing.city,
+        seller_phone=listing.seller_phone,
+        description=listing.description,
     )
-
     listing = crud.create_vehicle_listing(
         db=db,
         listing=listing_in,
         user_id=current_user.id,
     )
+
+    listing.rc_details = listing.verification.raw_data
+    if listing.owner:
+        listing.owner_email = listing.owner.email
+    else:
+        owner = crud.get_user(db, user_id=listing.user_id)
+        if owner:
+            listing.owner_email = owner.email
     return listing
 
 
