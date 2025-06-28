@@ -234,10 +234,18 @@ def create_verification(db: Session, reg_no: str, status: str, raw_data: dict):
     return verification
 
 
-def add_listing_images(db: Session, listing_id: int, image_urls: List[str]) -> List[models.ListingImage]:
+def add_listing_images(
+        db: Session,
+        listing_id: int,
+        images_data: List[dict]
+) -> List[models.ListingImage]:
     images = []
-    for url in image_urls:
-        img = models.ListingImage(listing_id=listing_id, url=url)
+    for data in images_data:
+        img = models.ListingImage(
+            listing_id=listing_id,
+            url=data["url"],
+            is_primary=data.get("is_primary", False)
+        )
         db.add(img)
         images.append(img)
     db.commit()
