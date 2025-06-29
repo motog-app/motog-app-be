@@ -103,7 +103,8 @@ def get_vehicle_listings(
     min_year: Optional[int] = None,
     max_year: Optional[int] = None,
     min_km_driven: Optional[int] = None,
-    max_km_driven: Optional[int] = None
+    max_km_driven: Optional[int] = None,
+    owner_id: Optional[int] = None,
 ):
     query = db.query(models.VehicleListing).filter(
         models.VehicleListing.is_active == True)
@@ -135,6 +136,11 @@ def get_vehicle_listings(
     if max_km_driven is not None:
         query = query.filter(
             models.VehicleListing.kilometers_driven <= max_km_driven)
+
+    if owner_id is not None:
+        query = query.filter(
+            models.VehicleListing.user_id == owner_id
+        )
 
     return query.order_by(models.VehicleListing.created_at.desc()).offset(skip).limit(limit).all()
 
@@ -278,3 +284,17 @@ def update_listing_image_url(db: Session, image_id: int, new_url: str) -> Option
         db.refresh(image)
         return image
     return None
+
+
+def get_homepage_listings(db: Session, city_input: str, limit: int = 10):
+    city_input = city_input.lower().strip()
+
+    query = db.query(models.VehicleListing).filter(
+        models.VehicleListing.is_active == True,
+        models.VehicleListing.city.ilike(f"%{city_input}%"),
+        db.query(models.ListingImage.id)
+        .filter(models.ListingImage.listing_id == models.VehicleListing.id)
+        .exists()
+    ).order_by(models.VehicleListing.created_at.desc()).limit(limit)
+
+    return query.all()
