@@ -1,15 +1,13 @@
 # app/crud.py
 import re
-from time import sleep
 from sqlalchemy.orm import Session
 from . import models, schemas
 from .core.security import get_password_hash
 from typing import Optional, List
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, cast, Integer
 import googlemaps
 from app.core.config import settings
 import redis
-import json
 
 gmaps = googlemaps.Client(key=settings.MAPS_API_KEY)
 redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
@@ -108,8 +106,14 @@ def get_vehicle_listings(
     max_km_driven: Optional[int] = None,
     owner_id: Optional[int] = None,
 ):
-    query = db.query(models.VehicleListing).filter(
-        models.VehicleListing.is_active == True)
+    # query = db.query(models.VehicleListing).filter(
+    #     models.VehicleListing.is_active == True)
+
+    query = (
+        db.query(models.VehicleListing)
+        .join(models.VehicleVerification, models.VehicleListing.reg_no == models.VehicleVerification.reg_no)
+        .filter(models.VehicleListing.is_active == True)
+    )
 
     if city:
         search_term = f"%{city.lower()}%"
@@ -125,12 +129,6 @@ def get_vehicle_listings(
     if max_price is not None:
         query = query.filter(models.VehicleListing.price <= max_price)
 
-    if min_year is not None:
-        query = query.filter(models.VehicleListing.year >= min_year)
-
-    if max_year is not None:
-        query = query.filter(models.VehicleListing.year <= max_year)
-
     if min_km_driven is not None:
         query = query.filter(
             models.VehicleListing.kilometers_driven >= min_km_driven)
@@ -143,6 +141,18 @@ def get_vehicle_listings(
         query = query.filter(
             models.VehicleListing.user_id == owner_id
         )
+
+    # Convert JSON field to DATE
+    mfg_date = cast(func.substring(
+        models.VehicleVerification.raw_data['vehicle_manufacturing_month_year'].astext,
+        4, 4
+    ), Integer)
+    
+    if min_year:
+        query = query.filter(mfg_date >= min_year)
+
+    if max_year:
+        query = query.filter(mfg_date <= max_year)
 
     return query.order_by(models.VehicleListing.created_at.desc()).offset(skip).limit(limit).all()
 

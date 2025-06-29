@@ -1,7 +1,10 @@
-# backend/app/apis/v1/endpoints/listings.py
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
+from typing import List, Optional, Any
+
+from fastapi import (
+    APIRouter, Depends, HTTPException, status,
+    File, UploadFile, Form
+)
 from sqlalchemy.orm import Session
-from typing import List, Any, Optional
 import cloudinary
 import cloudinary.uploader
 
@@ -12,6 +15,7 @@ from app.core.config import settings
 
 router = APIRouter()
 
+# Cloudinary config
 cloudinary.config(
     cloud_name=settings.CLOUDINARY_CLOUD_NAME,
     api_key=settings.CLOUDINARY_API_KEY,
@@ -19,47 +23,22 @@ cloudinary.config(
 )
 
 
+# --- Helper Utilities ---
+
+def enrich_listing(listing: models.VehicleListing, db: Session):
+    listing.rc_details = listing.verification.raw_data if listing.verification else None
+    if not listing.owner:
+        listing.owner = crud.get_user(db, user_id=listing.user_id)
+    listing.owner_email = listing.owner.email if listing.owner else None
+
+
+# --- Endpoints ---
+
 @router.get("/search", response_model=List[schemas.VehicleListing])
 def search_listings(q: str, db: Session = Depends(get_db), skip: int = 0, limit: int = 10):
-    """
-    Parameters:
-    - q (str): The search query entered by the user (e.g., "Hyundai Creta").
-    - db (Session): SQLAlchemy session dependency.
-    - skip (int): Number of records to skip for pagination.
-    - limit (int): Maximum number of records to return.
-
-    Returns:
-    - List of matching vehicle listings.
-
-    Examples:
-    ---------
-    - q = "Hyundai Creta"
-        → Returns all listings where manufacturer is Hyundai and model is Creta.
-
-    - q = "Delhi 2021"
-        → Returns listings related to Delhi that were manufactured in 2021.
-
-    - q = "Honda car"
-        → Returns listings with manufacturer Honda and model containing "car".
-
-    - q = "SUV Bangalore"
-        → Can be extended to match body type or city if implemented.
-    """
-    listings = crud.search_vehicle_listings(
-        db=db,
-        q=q,
-        skip=skip,
-        limit=limit
-    )
-
+    listings = crud.search_vehicle_listings(db=db, q=q, skip=skip, limit=limit)
     for listing in listings:
-        listing.rc_details = listing.verification.raw_data
-        if listing.owner:
-            listing.owner_email = listing.owner.email
-        else:
-            owner = crud.get_user(db, user_id=listing.user_id)
-            if owner:
-                listing.owner_email = owner.email
+        enrich_listing(listing, db)
     return listings
 
 
@@ -71,14 +50,10 @@ def get_my_listings(
     limit: int = 10,
 ):
     listings = crud.get_vehicle_listings(
-        db=db,
-        skip=skip,
-        limit=limit,
-        owner_id=current_user.id
-    )
+        db=db, skip=skip, limit=limit, owner_id=current_user.id)
     for listing in listings:
         listing.rc_details = listing.verification.raw_data if listing.verification else None
-        listing.owner_email = current_user.email  # No need to fetch again
+        listing.owner_email = current_user.email
     return listings
 
 
@@ -88,31 +63,9 @@ async def create_listing(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ) -> Any:
-    """
-    Create a new vehicle listing.
-    """
-    listing_in = schemas.VehicleListingCreate(
-        vehicle_type=listing.vehicle_type,
-        reg_no=listing.reg_no,
-        kilometers_driven=listing.kilometers_driven,
-        price=listing.price,
-        city=listing.city,
-        seller_phone=listing.seller_phone,
-        description=listing.description,
-    )
     listing = crud.create_vehicle_listing(
-        db=db,
-        listing=listing_in,
-        user_id=current_user.id,
-    )
-
-    listing.rc_details = listing.verification.raw_data
-    if listing.owner:
-        listing.owner_email = listing.owner.email
-    else:
-        owner = crud.get_user(db, user_id=listing.user_id)
-        if owner:
-            listing.owner_email = owner.email
+        db=db, listing=listing, user_id=current_user.id)
+    enrich_listing(listing, db)
     return listing
 
 
@@ -130,9 +83,6 @@ def read_listings(
     min_km_driven: Optional[int] = None,
     max_km_driven: Optional[int] = None
 ) -> Any:
-    """
-    Retrieve multiple vehicle listings with optional filters.
-    """
     listings = crud.get_vehicle_listings(
         db=db,
         skip=skip,
@@ -147,33 +97,16 @@ def read_listings(
         max_km_driven=max_km_driven
     )
     for listing in listings:
-        listing.rc_details = listing.verification.raw_data
-        if listing.owner:
-            listing.owner_email = listing.owner.email
-        else:
-            owner = crud.get_user(db, user_id=listing.user_id)
-            if owner:
-                listing.owner_email = owner.email
+        enrich_listing(listing, db)
     return listings
 
 
 @router.get("/{listing_id}", response_model=schemas.VehicleListing)
 def read_listing(listing_id: int, db: Session = Depends(get_db)) -> Any:
-    """
-    Retrieve a single vehicle listing by ID.
-    """
     listing = crud.get_listing_by_id(db, listing_id=listing_id)
     if not listing:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
-
-    if listing.owner:
-        listing.owner_email = listing.owner.email
-    else:
-        owner = crud.get_user(db, user_id=listing.user_id)
-        if owner:
-            listing.owner_email = owner.email
-    listing.rc_details = listing.verification.raw_data
+        raise HTTPException(status_code=404, detail="Listing not found")
+    enrich_listing(listing, db)
     return listing
 
 
@@ -183,14 +116,11 @@ def delete_listing_by_id(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ) -> None:
-    """
-    Deactivate (soft delete) a vehicle listing by its owner.
-    """
     listing = crud.delete_listing(
         db, listing_id=listing_id, user_id=current_user.id)
     if not listing:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail="Listing not found or not authorized")
+        raise HTTPException(
+            status_code=404, detail="Listing not found or not authorized")
 
 
 @router.put("/{listing_id}", response_model=schemas.VehicleListing)
@@ -200,16 +130,13 @@ def update_listing(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
 ):
-    update_listing = crud.update_vehicle_listing(
-        db=db,
-        listing_id=listing_id,
-        listing_in=listing_in,
-        user_id=current_user.id
-    )
-    if not update_listing:
+    listing = crud.update_vehicle_listing(
+        db, listing_id, listing_in, current_user.id)
+    if not listing:
         raise HTTPException(
-            status_code=404, detail="Listing not Found or Unauthorised")
-    return update_listing
+            status_code=404, detail="Listing not found or unauthorized")
+    enrich_listing(listing, db)
+    return listing
 
 
 @router.post("/{listing_id}/images", response_model=List[schemas.ListingImage])
@@ -220,35 +147,31 @@ async def upload_listing_images(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
-    if len(files) != len(is_primary_flags) or sum(is_primary_flags) != 1:
-        raise HTTPException(
-            status_code=400, detail="Mismatch in files and is_primary flags or more than 1 primary_flag as True")
+    if len(files) != len(is_primary_flags):
+        raise HTTPException(400, "Number of files and flags mismatch")
+    if sum(is_primary_flags) != 1:
+        raise HTTPException(400, "Exactly one image must be marked as primary")
 
     listing = crud.get_listing_by_id(db, listing_id)
     if not listing or listing.user_id != current_user.id:
-        raise HTTPException(
-            status_code=403, detail="Listing not found or Not Authorized")
+        raise HTTPException(403, "Listing not found or not authorized")
 
     existing = crud.get_images_for_listing(db, listing_id)
     if len(existing) + len(files) > 5:
-        raise HTTPException(
-            status_code=400, detail="You can only upload up tp 5 images per listing")
+        raise HTTPException(400, "You can upload up to 5 images per listing")
 
     if any(img.is_primary for img in existing) and any(is_primary_flags):
-        raise HTTPException(
-            status_code=400, detail="A primary image already exists")
+        raise HTTPException(400, "A primary image already exists")
 
     image_data = []
     for i, file in enumerate(files):
         result = cloudinary.uploader.upload(file.file)
-        url = result.get("secure_url")
         image_data.append({
-            "url": url,
+            "url": result.get("secure_url"),
             "is_primary": is_primary_flags[i]
         })
 
-    added_images = crud.add_listing_images(db, listing_id, image_data)
-    return added_images
+    return crud.add_listing_images(db, listing_id, image_data)
 
 
 @router.delete("/images/{image_id}", status_code=204)
@@ -259,14 +182,13 @@ def delete_listing_image(
 ):
     image = crud.get_listing_image(db, image_id)
     if not image:
-        raise HTTPException(status_code=404, detail="Image not found")
+        raise HTTPException(404, "Image not found")
 
     listing = crud.get_listing_by_id(db, image.listing_id)
     if not listing or listing.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+        raise HTTPException(403, "Not authorized")
 
     crud.delete_listing_image(db, image_id)
-    return
 
 
 @router.put("/images/{image_id}", response_model=str)
@@ -278,11 +200,11 @@ async def update_listing_image(
 ):
     image = crud.get_listing_image(db, image_id)
     if not image:
-        raise HTTPException(status_code=404, detail="Image not found")
+        raise HTTPException(404, "Image not found")
 
     listing = crud.get_listing_by_id(db, image.listing_id)
     if not listing or listing.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+        raise HTTPException(403, "Not authorized")
 
     result = cloudinary.uploader.upload(file.file)
     updated = crud.update_listing_image_url(
