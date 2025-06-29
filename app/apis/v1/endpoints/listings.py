@@ -19,6 +19,25 @@ cloudinary.config(
 )
 
 
+@router.get("/my-listings", response_model=List[schemas.VehicleListing])
+def get_my_listings(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user),
+    skip: int = 0,
+    limit: int = 10,
+):
+    listings = crud.get_vehicle_listings(
+        db=db,
+        skip=skip,
+        limit=limit,
+        owner_id=current_user.id
+    )
+    for listing in listings:
+        listing.rc_details = listing.verification.raw_data if listing.verification else None
+        listing.owner_email = current_user.email  # No need to fetch again
+    return listings
+
+
 @router.post("/", response_model=schemas.VehicleListing, status_code=status.HTTP_201_CREATED)
 async def create_listing(
     listing: schemas.VehicleListingCreate,
@@ -183,7 +202,7 @@ async def upload_listing_images(
             "url": url,
             "is_primary": is_primary_flags[i]
         })
-    
+
     added_images = crud.add_listing_images(db, listing_id, image_data)
     return added_images
 
