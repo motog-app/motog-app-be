@@ -19,6 +19,50 @@ cloudinary.config(
 )
 
 
+@router.get("/search", response_model=List[schemas.VehicleListing])
+def search_listings(q: str, db: Session = Depends(get_db), skip: int = 0, limit: int = 10):
+    """
+    Parameters:
+    - q (str): The search query entered by the user (e.g., "Hyundai Creta").
+    - db (Session): SQLAlchemy session dependency.
+    - skip (int): Number of records to skip for pagination.
+    - limit (int): Maximum number of records to return.
+
+    Returns:
+    - List of matching vehicle listings.
+
+    Examples:
+    ---------
+    - q = "Hyundai Creta"
+        → Returns all listings where manufacturer is Hyundai and model is Creta.
+
+    - q = "Delhi 2021"
+        → Returns listings related to Delhi that were manufactured in 2021.
+
+    - q = "Honda car"
+        → Returns listings with manufacturer Honda and model containing "car".
+
+    - q = "SUV Bangalore"
+        → Can be extended to match body type or city if implemented.
+    """
+    listings = crud.search_vehicle_listings(
+        db=db,
+        q=q,
+        skip=skip,
+        limit=limit
+    )
+
+    for listing in listings:
+        listing.rc_details = listing.verification.raw_data
+        if listing.owner:
+            listing.owner_email = listing.owner.email
+        else:
+            owner = crud.get_user(db, user_id=listing.user_id)
+            if owner:
+                listing.owner_email = owner.email
+    return listings
+
+
 @router.get("/my-listings", response_model=List[schemas.VehicleListing])
 def get_my_listings(
     db: Session = Depends(get_db),

@@ -1,9 +1,11 @@
 # app/crud.py
+import re
+from time import sleep
 from sqlalchemy.orm import Session
 from . import models, schemas
 from .core.security import get_password_hash
 from typing import Optional, List
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 import googlemaps
 from app.core.config import settings
 import redis
@@ -296,5 +298,64 @@ def get_homepage_listings(db: Session, city_input: str, limit: int = 10):
         .filter(models.ListingImage.listing_id == models.VehicleListing.id)
         .exists()
     ).order_by(models.VehicleListing.created_at.desc()).limit(limit)
+
+    return query.all()
+
+
+def search_vehicle_listings(db: Session, q: str, skip: int = 0, limit: int = 10) -> List[models.VehicleListing]:
+    """
+    Search active vehicle listings based on a keyword query. The query supports
+    searching by vehicle manufacturer name and model from the verification raw data.
+
+    Args:
+        db (Session): SQLAlchemy DB session.
+        q (str): Search query, e.g., "Hyundai Creta 2021".
+        skip (int): Number of records to skip (pagination).
+        limit (int): Maximum number of records to return (pagination).
+
+    Returns:
+        List[VehicleListing]: List of matching vehicle listings ordered by manufacturing date.
+    """
+
+    # Remove non-alphanumeric characters (except space), make lowercase
+    q = re.sub(r"[^a-zA-Z0-9\s]", "", q).lower().strip()
+    keywords = q.split()
+
+    # Base query: only active listings with join to verification table
+    query = (
+        db.query(models.VehicleListing)
+        .join(models.VehicleVerification, models.VehicleListing.reg_no == models.VehicleVerification.reg_no)
+        .filter(models.VehicleListing.is_active == True)
+    )
+
+    # Add search conditions using ilike for manufacturer name and model
+    if keywords:
+        conditions = []
+        for word in keywords:
+            ilike_pattern = f"%{word}%"
+            conditions.append(func.lower(
+                models.VehicleVerification.raw_data['vehicle_manufacturer_name'].astext).ilike(ilike_pattern))
+            conditions.append(func.lower(
+                models.VehicleVerification.raw_data['model'].astext).ilike(ilike_pattern))
+
+        query = query.filter(or_(*conditions))
+
+    # Extract and reuse manufacturing date
+    manufacture_date = func.to_date(
+        models.VehicleVerification.raw_data['vehicle_manufacturing_month_year'].astext,
+        'MM/YYYY'
+    )
+
+    # Ensure distinct listings and order by manufacturing date descending
+    query = (
+        query
+        .distinct(manufacture_date, models.VehicleListing.id)
+        .order_by(
+            manufacture_date.desc(),
+            models.VehicleListing.id.desc()
+        )
+        .offset(skip)
+        .limit(limit)
+    )
 
     return query.all()
