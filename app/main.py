@@ -26,7 +26,7 @@ origins = [
     "http://127.0.0.1:3000",  # Another common local development address
     "http://192.168.1.3:3000",
     "https://motog-app-fe.vercel.app",
-    "https://www.gomotog.com/",
+    "https://www.gomotog.com",
 ]
 
 app.add_middleware(
