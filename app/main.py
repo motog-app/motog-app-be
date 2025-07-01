@@ -25,7 +25,8 @@ origins = [
     "http://localhost:3000", # Your Next.js frontend origin
     "http://127.0.0.1:3000",  # Another common local development address
     "http://192.168.1.3:3000",
-    "https://motog-app-fe.vercel.app"
+    "https://motog-app-fe.vercel.app",
+    "https://www.gomotog.com/",
 ]
 
 app.add_middleware(
@@ -38,10 +39,6 @@ app.add_middleware(
 
 # Include API routers
 app.include_router(api_router)
-# app.include_router(auth.router, prefix=settings.API_V1_STR, tags=["auth"])
-# app.include_router(listings.router, prefix=settings.API_V1_STR + "/listings", tags=["listings"])
-# app.include_router(vehicle_verification.router, prefix=settings.API_V1_STR, tags=["Vehicle Verification"])
-# app.include_router(location_services.router, prefix=settings.API_V1_STR, tags=["Location Services"])
 
 @app.get("/", tags=["Root"])
 async def read_root():
