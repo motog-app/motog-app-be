@@ -63,6 +63,11 @@ async def create_listing(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ) -> Any:
+    if crud.get_listing_by_rc(db=db, rc=listing.reg_no):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A listing with the RC already exists.",
+        )
     listing = crud.create_vehicle_listing(
         db=db, listing=listing, user_id=current_user.id)
     enrich_listing(listing, db)
@@ -149,14 +154,18 @@ async def upload_listing_images(
 ):
     if len(files) != len(is_primary_flags):
         raise HTTPException(400, "Number of files and flags mismatch")
-    if sum(is_primary_flags) != 1:
-        raise HTTPException(400, "Exactly one image must be marked as primary")
 
     listing = crud.get_listing_by_id(db, listing_id)
     if not listing or listing.user_id != current_user.id:
         raise HTTPException(403, "Listing not found or not authorized")
 
     existing = crud.get_images_for_listing(db, listing_id)
+
+    if not existing:
+        if sum(is_primary_flags) != 1:
+            raise HTTPException(
+                400, "Exactly one image must be marked as primary")
+
     if len(existing) + len(files) > 5:
         raise HTTPException(400, "You can upload up to 5 images per listing")
 
@@ -165,7 +174,7 @@ async def upload_listing_images(
 
     image_data = []
     for i, file in enumerate(files):
-        result = cloudinary.uploader.upload(file.file)
+        result = cloudinary.uploader.upload(file.file, folder="listing")
         image_data.append({
             "url": result.get("secure_url"),
             "is_primary": is_primary_flags[i]
@@ -206,7 +215,7 @@ async def update_listing_image(
     if not listing or listing.user_id != current_user.id:
         raise HTTPException(403, "Not authorized")
 
-    result = cloudinary.uploader.upload(file.file)
+    result = cloudinary.uploader.upload(file.file, folder="listing")
     updated = crud.update_listing_image_url(
         db, image_id, result.get("secure_url"))
     return updated.url
