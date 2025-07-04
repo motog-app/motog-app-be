@@ -1,6 +1,6 @@
 # backend/app/core/config.py
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import SecretStr, Field
+from pydantic import EmailStr, SecretStr, Field
 from typing import Optional
 
 class Settings(BaseSettings):
@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = Field("MotoG API", env="PROJECT_NAME")
     API_V1_STR: str = Field(env="API_V1_STR")
     ENV: str = Field("nonprod", env="ENV")
+    SERVER_HOST: str = Field("http://localhost:8000", env="SERVER_HOST")
 
     # Database Settings
     DATABASE_URL: str = Field(..., env="DATABASE_URL") # '...' makes this field required
@@ -24,6 +25,7 @@ class Settings(BaseSettings):
     SECRET_KEY: SecretStr = Field(..., env="SECRET_KEY") # Required secret
     ALGORITHM: str = Field("HS256", env="ALGORITHM")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(30, env="ACCESS_TOKEN_EXPIRE_MINUTES")
+    EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES: int = Field(15, env="EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES")
 
     # Cloudinary Settings (Optional, as they might not always be set)
     CLOUDINARY_CLOUD_NAME: Optional[str] = Field(None, env="CLOUDINARY_CLOUD_NAME")
@@ -39,5 +41,12 @@ class Settings(BaseSettings):
     CASHFREE_API_URL: Optional[str] = Field(None, env="CASHFREE_API_URL")
     CASHFREE_CLIENT_ID: Optional[str] = Field(None, env="CASHFREE_CLIENT_ID")
     CASHFREE_CLIENT_SECRET: Optional[str] = Field(None, env="CASHFREE_CLIENT_SECRET")
+
+    # Email settings
+    SMTP_HOST: str = Field(..., env="SMTP_HOST")
+    SMTP_PORT: int = Field(..., env="SMTP_PORT")
+    SMTP_USER: str = Field(..., env="SMTP_USER")
+    SMTP_PASSWORD: str = Field(..., env="SMTP_PASSWORD")
+    SMTP_FROM_EMAIL: EmailStr = Field(..., env="SMTP_FROM_EMAIL")
 
 settings = Settings()

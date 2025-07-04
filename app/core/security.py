@@ -46,3 +46,17 @@ def decode_access_token(token: str) -> dict:
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+# --- Email Verification Token --- 
+def create_email_verification_token(email: str) -> str:
+    expires = datetime.now(timezone.utc) + timedelta(minutes=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES)
+    to_encode = {"exp": expires, "sub": email}
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def verify_email_verification_token(token: str) -> Optional[str]:
+    try:
+        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return decoded_token.get("sub") # Return email from token
+    except JWTError:
+        return None
