@@ -29,3 +29,16 @@ unset DATABASE_URL (env variable name)
 
 #Test data for Cashfree
 RC - HJ01ME5678
+
+
+drop all the tables including DROP TYPE vehicletypeenum;
+alembic init alembic
+
+update in alembic.ini - database DATABASE_URL
+in env.py import app models
+and set the target_metadata = models.Base.metadata
+
+alembic revision --autogenerate -m "Initial database schema"
+alembic upgrade head
+alembic downgrade base or alembic downgrade head
+
