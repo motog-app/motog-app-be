@@ -1,6 +1,7 @@
 # app/crud.py
 
 import re
+import json
 from typing import Optional, List
 
 import googlemaps
@@ -20,6 +21,12 @@ GEOCODE_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 # --- Helper Functions ---
 
 def _resolve_city_location(input_city: str):
+    cache_key = f"geocode:{input_city.lower()}"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        resolved_str, lat, lng = json.loads(cached_data)
+        return resolved_str, lat, lng
+
     resolved = {input_city.lower()}
     lat, lng = None, None
 
@@ -41,7 +48,11 @@ def _resolve_city_location(input_city: str):
     except Exception as e:
         print(f"Google Maps API error: {e}")
 
-    return "|".join(sorted(resolved)), lat, lng
+    resolved_str = "|".join(sorted(resolved))
+    # Cache the result
+    redis_client.setex(cache_key, GEOCODE_CACHE_TTL_SECONDS,
+                       json.dumps([resolved_str, lat, lng]))
+    return resolved_str, lat, lng
 
 
 # --- User CRUD ---
@@ -175,8 +186,10 @@ def update_vehicle_listing(db: Session, listing_id: int, listing_in: schemas.Veh
 
     if "city" in data:
         data["usr_inp_city"] = data["city"]
-        data["city"], data["latitude"], data["longitude"] = _resolve_city_location(
-            data["city"])
+        resolved_str, lat, lng = _resolve_city_location(data["city"])
+        data["city"] = resolved_str
+        data["latitude"] = lat
+        data["longitude"] = lng
 
     for k, v in data.items():
         setattr(listing, k, v)
