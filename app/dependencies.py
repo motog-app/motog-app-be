@@ -6,7 +6,7 @@ from app import crud, models, schemas
 from app.database import get_db
 from app.core.security import decode_access_token
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
 
 async def get_current_user(
     db: Session = Depends(get_db),
