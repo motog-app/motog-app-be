@@ -51,4 +51,10 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = Field(..., env="SMTP_PASSWORD")
     SMTP_FROM_EMAIL: EmailStr = Field(..., env="SMTP_FROM_EMAIL")
 
+    # Rate Limiting for Create Listing
+    CREATE_LISTING_NORMAL_LIMIT: int = Field(5, env="CREATE_LISTING_NORMAL_LIMIT") # e.g., 5 listings
+    CREATE_LISTING_NORMAL_WINDOW: int = Field(3600, env="CREATE_LISTING_NORMAL_WINDOW") # e.g., per hour
+    CREATE_LISTING_VERIFIED_LIMIT: int = Field(20, env="CREATE_LISTING_VERIFIED_LIMIT") # e.g., 20 listings
+    CREATE_LISTING_VERIFIED_WINDOW: int = Field(3600, env="CREATE_LISTING_VERIFIED_WINDOW") # e.g., per hour
+
 settings = Settings()

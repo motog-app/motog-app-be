@@ -1,6 +1,7 @@
 # app/core/redis.py
 from redis.asyncio import Redis
 from app.core.config import settings
+import time
 
 redis_client: Redis = None
 
@@ -23,3 +24,22 @@ async def is_email_resend_throttled(email: str) -> bool:
     
     # If setnx returned 0, it means the key already existed, so it's throttled
     return results[0] == 0
+
+async def is_rate_limited(user_id: int, action: str, limit: int, window: int) -> bool:
+    client = await get_redis_client()
+    key = f"rate_limit:{action}:{user_id}"
+    
+    # Use a Redis pipeline for atomicity
+    pipe = client.pipeline()
+    pipe.lpush(key, int(time.time())) # Add current timestamp to the left of the list
+    pipe.ltrim(key, 0, limit - 1) # Trim the list to keep only the 'limit' most recent timestamps
+    pipe.expire(key, window) # Set expiration for the list
+    
+    # Get the count of elements in the list (number of requests in the window)
+    pipe.llen(key)
+    
+    results = await pipe.execute()
+    
+    current_count = results[-1] # The llen result is the last in the pipeline
+    
+    return current_count > limit

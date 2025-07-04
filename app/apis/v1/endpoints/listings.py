@@ -12,6 +12,7 @@ from app import crud, schemas, models
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.core.config import settings
+from app.core.redis import is_rate_limited
 
 router = APIRouter()
 
@@ -63,6 +64,21 @@ async def create_listing(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ) -> Any:
+    # Determine rate limits based on user verification status
+    if current_user.is_email_verified:
+        limit = settings.CREATE_LISTING_VERIFIED_LIMIT
+        window = settings.CREATE_LISTING_VERIFIED_WINDOW
+    else:
+        limit = settings.CREATE_LISTING_NORMAL_LIMIT
+        window = settings.CREATE_LISTING_NORMAL_WINDOW
+
+    # Apply rate limit
+    if await is_rate_limited(current_user.id, "create_listing", limit, window):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many listing creations. Please try again in {window / 60} minutes."
+        )
+
     if crud.get_listing_by_rc(db=db, rc=listing.reg_no):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
