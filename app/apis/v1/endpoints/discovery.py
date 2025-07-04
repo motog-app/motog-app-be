@@ -5,7 +5,7 @@ from typing import List, Any, Optional
 
 from app import crud, schemas, models
 from app.database import get_db
-from app.dependencies import get_current_active_user
+from app.dependencies import get_current_user
 from app.core.config import settings
 
 router = APIRouter()

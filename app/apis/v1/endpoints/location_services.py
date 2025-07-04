@@ -1,11 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends
-from app.dependencies import get_current_active_user
+from app.dependencies import get_current_user
 from app.core.config import settings
 import requests
 from app import schemas
 from app.helper.locationServices import extract_location_components, filter_relevant_suggestions
 
-router = APIRouter(dependencies=[Depends(get_current_active_user)])
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 @router.post("/get-location", response_model=schemas.LocationFrmLatLngResponse)

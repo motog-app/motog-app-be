@@ -19,6 +19,7 @@ class UserCreate(UserBase):
 class User(UserBase):
     id: int
     is_active: bool
+    is_email_verified: bool
     created_at: datetime
 
     class Config:
@@ -143,3 +144,21 @@ class LocationSuggestion(BaseModel):
 
 class LocAutoCompleteResponse(BaseModel):
     suggestions: List[LocationSuggestion]
+
+
+class ResendEmailRequest(BaseModel):
+    email: EmailStr
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=8)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=8)
+    new_password: str = Field(..., min_length=8)
