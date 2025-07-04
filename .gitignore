@@ -1,7 +1,7 @@
 venv/
 __pycache__/
 *.pyc
-.env
+.env*
 *.db # If you ever use SQLite for testing
 *.sqlite3
 .vscode/
