@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = Field("HS256", env="ALGORITHM")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(30, env="ACCESS_TOKEN_EXPIRE_MINUTES")
     EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES: int = Field(15, env="EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES")
+    EMAIL_RESEND_COOLDOWN_SECONDS: int = Field(60, env="EMAIL_RESEND_COOLDOWN_SECONDS")
 
     # Cloudinary Settings (Optional, as they might not always be set)
     CLOUDINARY_CLOUD_NAME: Optional[str] = Field(None, env="CLOUDINARY_CLOUD_NAME")

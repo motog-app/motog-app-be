@@ -144,3 +144,11 @@ class LocationSuggestion(BaseModel):
 
 class LocAutoCompleteResponse(BaseModel):
     suggestions: List[LocationSuggestion]
+
+
+class ResendEmailRequest(BaseModel):
+    email: EmailStr
+
+
+class ResendEmailRequest(BaseModel):
+    email: EmailStr

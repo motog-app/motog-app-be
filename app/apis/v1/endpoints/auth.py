@@ -8,6 +8,7 @@ from app import crud, schemas, models
 from app.database import get_db
 from app.core.security import create_access_token, verify_password, verify_email_verification_token
 from app.helper.email import send_verification_email
+from app.core.redis import is_email_resend_throttled
 
 router = APIRouter()
 
@@ -86,3 +87,30 @@ def verify_email(token: str, db: Session = Depends(get_db)) -> Any:
     db.refresh(user)
     
     return user
+
+
+@router.post("/resend-verification-email")
+async def resend_verification_email(
+    request: schemas.ResendEmailRequest,
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    Resend email verification link to a user.
+    """
+    if await is_email_resend_throttled(request.email):
+        # Return a generic success message to prevent email enumeration
+        return {"message": "If the email exists and is not verified, a new link will be sent shortly."}
+
+    user = crud.get_user_by_email(db, email=request.email)
+    if not user:
+        # Return a generic success message to prevent email enumeration
+        return {"message": "If the email exists and is not verified, a new link will be sent shortly."}
+
+    if user.is_email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email is already verified.",
+        )
+
+    await send_verification_email(user.email)
+    return {"message": "Verification email sent successfully."}
