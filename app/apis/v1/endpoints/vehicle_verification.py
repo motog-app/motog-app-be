@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app import schemas, models, crud
 from app.database import get_db
-from app.dependencies import get_current_active_user
+from app.dependencies import get_current_user
 from app.core.config import settings
 import requests
 import uuid
@@ -11,7 +11,7 @@ router = APIRouter()
 
 
 @router.post("/vehicle-verify", response_model=schemas.VehicleVerificationResponse)
-def verify_vehicle_rc(request: schemas.RCRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):
+def verify_vehicle_rc(request: schemas.RCRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     # Check if already in DB
     existing = crud.get_verification_by_reg_no(db, request.reg_no)
     if existing:
