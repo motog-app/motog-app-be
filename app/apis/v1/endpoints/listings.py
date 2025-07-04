@@ -10,7 +10,7 @@ import cloudinary.uploader
 
 from app import crud, schemas, models
 from app.database import get_db
-from app.dependencies import get_current_active_user
+from app.dependencies import get_current_user
 from app.core.config import settings
 
 router = APIRouter()
@@ -45,7 +45,7 @@ def search_listings(q: str, db: Session = Depends(get_db), skip: int = 0, limit:
 @router.get("/my-listings", response_model=List[schemas.VehicleListing])
 def get_my_listings(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user),
+    current_user: models.User = Depends(get_current_user),
     skip: int = 0,
     limit: int = 10,
 ):
@@ -61,7 +61,7 @@ def get_my_listings(
 async def create_listing(
     listing: schemas.VehicleListingCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_user)
 ) -> Any:
     if crud.get_listing_by_rc(db=db, rc=listing.reg_no):
         raise HTTPException(
@@ -119,7 +119,7 @@ def read_listing(listing_id: int, db: Session = Depends(get_db)) -> Any:
 def delete_listing_by_id(
     listing_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_user)
 ) -> None:
     listing = crud.delete_listing(
         db, listing_id=listing_id, user_id=current_user.id)
@@ -133,7 +133,7 @@ def update_listing(
     listing_id: int,
     listing_in: schemas.VehicleListingUpdate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user),
+    current_user: models.User = Depends(get_current_user),
 ):
     listing = crud.update_vehicle_listing(
         db, listing_id, listing_in, current_user.id)
@@ -150,7 +150,7 @@ async def upload_listing_images(
     files: List[UploadFile] = File(...),
     is_primary_flags: List[bool] = Form(...),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_user)
 ):
     if len(files) != len(is_primary_flags):
         raise HTTPException(400, "Number of files and flags mismatch")
@@ -187,7 +187,7 @@ async def upload_listing_images(
 def delete_listing_image(
     image_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_user)
 ):
     image = crud.get_listing_image(db, image_id)
     if not image:
@@ -205,7 +205,7 @@ async def update_listing_image(
     image_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: models.User = Depends(get_current_user)
 ):
     image = crud.get_listing_image(db, image_id)
     if not image:

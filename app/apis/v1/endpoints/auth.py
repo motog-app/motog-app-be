@@ -7,8 +7,10 @@ from typing import Any
 from app import crud, schemas, models
 from app.database import get_db
 from app.core.security import create_access_token, verify_password, verify_email_verification_token
-from app.helper.email import send_verification_email
+from app.helper.email import send_verification_email, send_password_reset_email
 from app.core.redis import is_email_resend_throttled
+from app.core.security import create_password_reset_token, verify_password_reset_token, get_password_hash
+from app.dependencies import get_current_user
 
 router = APIRouter()
 
@@ -114,3 +116,72 @@ async def resend_verification_email(
 
     await send_verification_email(user.email)
     return {"message": "Verification email sent successfully."}
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    request: schemas.ForgotPasswordRequest,
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    Request a password reset link for the given email.
+    """
+    # Always return a generic success message to prevent email enumeration
+    user = crud.get_user_by_email(db, email=request.email)
+    if user:
+        await send_password_reset_email(user.email)
+    
+    return {"message": "If a user with that email exists, a password reset link will be sent."}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    request: schemas.ResetPasswordRequest,
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    Reset user's password using a valid token.
+    """
+    email = verify_password_reset_token(request.token)
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired password reset token.",
+        )
+    
+    user = crud.get_user_by_email(db, email=email)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+
+    user.hashed_password = get_password_hash(request.new_password)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    return {"message": "Password has been reset successfully."}
+
+
+@router.post("/change-password")
+async def change_password(
+    request: schemas.ChangePasswordRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    Change the password for the authenticated user.
+    """
+    if not verify_password(request.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password.",
+        )
+    
+    current_user.hashed_password = get_password_hash(request.new_password)
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    
+    return {"message": "Password changed successfully."}
