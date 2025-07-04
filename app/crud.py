@@ -144,6 +144,10 @@ def get_listing_by_id(db: Session, listing_id: int):
     ).first()
 
 
+def get_listing_by_rc(db: Session, rc: str):
+    return db.query(models.VehicleListing).filter(models.VehicleListing.reg_no == rc).first()
+
+
 def delete_listing(db: Session, listing_id: int, user_id: int):
     listing = db.query(models.VehicleListing).filter(
         models.VehicleListing.id == listing_id,
@@ -211,6 +215,10 @@ def add_listing_images(db: Session, listing_id: int, images_data: List[dict]):
 
 def get_images_for_listing(db: Session, listing_id: int):
     return db.query(models.ListingImage).filter_by(listing_id=listing_id).all()
+
+
+def get_primary_image_for_listing(db: Session, listing_id: int):
+    return db.query(models.ListingImage).filter(models.ListingImage.listing_id == listing_id, models.ListingImage.is_primary == True).first()
 
 
 def get_listing_image(db: Session, image_id: int):
