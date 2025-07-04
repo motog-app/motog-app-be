@@ -13,21 +13,35 @@ try:
 except Exception as e:
     print(f"Error creating database tables: {e}")
 
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    openapi_url="/openapi.json",
-    version="0.1.0"
-)
+fastapi_kwargs = {
+    "title": settings.PROJECT_NAME,
+    "version": "0.1.0"
+}
+
+if settings.ENV == 'prod':
+    fastapi_kwargs["docs_url"] = None
+    fastapi_kwargs["redoc_url"] = None
+    fastapi_kwargs["openapi_url"] = None
+
+app = FastAPI(**fastapi_kwargs)
 
 # CORS Middleware configuration
-origins = [
-    "http://localhost",
-    "http://localhost:3000", # Your Next.js frontend origin
-    "http://127.0.0.1:3000",  # Another common local development address
-    "http://192.168.1.3:3000",
-    "https://motog-app-fe.vercel.app",
-    "https://www.gomotog.com",
-]
+if settings.ENV == 'nonprod':
+    origins = [
+        "http://localhost",
+        "http://localhost:3000", # Your Next.js frontend origin
+        "http://127.0.0.1:3000",  # Another common local development address
+        "http://192.168.1.3:3000",
+        "https://motog-app-fe.vercel.app",
+        "https://www.gomotog.com",
+    ]
+elif settings.ENV == 'prod':
+    origins = [
+        "https://www.gomotog.com",
+        "https://motog-app-fe-liart.vercel.app"
+    ]
+else:
+    origins = []
 
 app.add_middleware(
     CORSMiddleware,

@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     # and use "MotoG API" as a default if not found.
     PROJECT_NAME: str = Field("MotoG API", env="PROJECT_NAME")
     API_V1_STR: str = Field(env="API_V1_STR")
+    ENV: str = Field("nonprod", env="ENV")
 
     # Database Settings
     DATABASE_URL: str = Field(..., env="DATABASE_URL") # '...' makes this field required
