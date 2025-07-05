@@ -31,7 +31,7 @@ async def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_d
     return user
 
 
-@router.post("/login", response_model=schemas.Token)
+@router.post("/login", response_model=schemas.LoginResponse)
 def login_for_access_token(
     db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()
 ) -> Any:
@@ -49,16 +49,11 @@ def login_for_access_token(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
         )
-    # elif not user.is_email_verified:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_400_BAD_REQUEST,
-    #         detail="Email not verified. Please check your inbox for the verification link.",
-    #     )
 
     access_token = create_access_token(
         data={"sub": user.email}
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "user": user}
 
 
 @router.get("/verify-email", response_model=schemas.User)

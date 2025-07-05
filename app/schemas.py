@@ -37,6 +37,10 @@ class TokenData(BaseModel):
     email: Optional[str] = None
 
 
+class LoginResponse(Token):
+    user: User
+
+
 class ListingImageCreate(BaseModel):
     url: str
     is_primary: bool = False
