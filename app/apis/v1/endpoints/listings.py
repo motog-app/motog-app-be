@@ -34,13 +34,6 @@ def enrich_listing(listing: models.VehicleListing, db: Session):
 
 # --- Endpoints ---
 
-@router.get("/search", response_model=List[schemas.VehicleListing])
-def search_listings(q: str, db: Session = Depends(get_db), skip: int = 0, limit: int = 10):
-    listings = crud.search_vehicle_listings(db=db, q=q, skip=skip, limit=limit)
-    for listing in listings:
-        enrich_listing(listing, db)
-    return listings
-
 
 @router.get("/my-listings", response_model=List[schemas.VehicleListing])
 def get_my_listings(
@@ -79,6 +72,7 @@ def read_listings(
     db: Session = Depends(get_db),
     skip: int = 0,
     limit: int = 10,
+    search_q: Optional[str] = None,
     city: Optional[str] = None,
     vehicle_type: Optional[schemas.VehicleTypeEnum] = None,
     min_price: Optional[int] = None,
@@ -92,6 +86,7 @@ def read_listings(
         db=db,
         skip=skip,
         limit=limit,
+        q=search_q,
         city=city,
         vehicle_type=vehicle_type,
         min_price=min_price,
