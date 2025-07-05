@@ -30,4 +30,6 @@ async def get_current_user(
         raise credentials_exception
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
+    if not user.is_email_verified:
+        raise HTTPException(status_code=400, detail="Email not verified. Please check your inbox for the verification link")
     return user

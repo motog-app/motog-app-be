@@ -14,6 +14,7 @@ from app.dependencies import get_current_user
 
 router = APIRouter()
 
+
 @router.post("/register", response_model=schemas.User)
 async def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)) -> Any:
     """
@@ -48,11 +49,11 @@ def login_for_access_token(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
         )
-    elif not user.is_email_verified:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email not verified. Please check your inbox for the verification link.",
-        )
+    # elif not user.is_email_verified:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_400_BAD_REQUEST,
+    #         detail="Email not verified. Please check your inbox for the verification link.",
+    #     )
 
     access_token = create_access_token(
         data={"sub": user.email}
@@ -71,7 +72,7 @@ def verify_email(token: str, db: Session = Depends(get_db)) -> Any:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired email verification token.",
         )
-    
+
     user = crud.get_user_by_email(db, email=email)
     if not user:
         # This is an unlikely case if the token is valid
@@ -81,13 +82,13 @@ def verify_email(token: str, db: Session = Depends(get_db)) -> Any:
         )
 
     if user.is_email_verified:
-        return user # Or you could raise an HTTPException saying it's already verified
+        return user  # Or you could raise an HTTPException saying it's already verified
 
     user.is_email_verified = True
     db.add(user)
     db.commit()
     db.refresh(user)
-    
+
     return user
 
 
@@ -130,7 +131,7 @@ async def forgot_password(
     user = crud.get_user_by_email(db, email=request.email)
     if user:
         await send_password_reset_email(user.email)
-    
+
     return {"message": "If a user with that email exists, a password reset link will be sent."}
 
 
@@ -148,7 +149,7 @@ async def reset_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired password reset token.",
         )
-    
+
     user = crud.get_user_by_email(db, email=email)
     if not user:
         raise HTTPException(
@@ -160,7 +161,7 @@ async def reset_password(
     db.add(user)
     db.commit()
     db.refresh(user)
-    
+
     return {"message": "Password has been reset successfully."}
 
 
@@ -178,10 +179,10 @@ async def change_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Incorrect current password.",
         )
-    
+
     current_user.hashed_password = get_password_hash(request.new_password)
     db.add(current_user)
     db.commit()
     db.refresh(current_user)
-    
+
     return {"message": "Password changed successfully."}

@@ -107,7 +107,7 @@ def read_listings(
 
 
 @router.get("/{listing_id}", response_model=schemas.VehicleListing)
-def read_listing(listing_id: int, db: Session = Depends(get_db)) -> Any:
+def read_listing(listing_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)) -> Any:
     listing = crud.get_listing_by_id(db, listing_id=listing_id)
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
