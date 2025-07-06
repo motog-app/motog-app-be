@@ -139,6 +139,21 @@ def update_listing(
     return listing
 
 
+@router.patch("/{listing_id}/images/{image_id}/make-primary")
+def set_primary_image(
+    listing_id: int,
+    image_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    listing = crud.get_listing_by_id(db, listing_id)
+    if not listing or listing.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    crud.set_primary_image(db, listing_id, image_id)
+    return {"detail": "Primary image updated"}
+
+
 @router.post("/{listing_id}/images", response_model=List[schemas.ListingImage])
 async def upload_listing_images(
     listing_id: int,
