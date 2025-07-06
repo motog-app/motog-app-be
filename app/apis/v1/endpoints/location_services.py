@@ -7,7 +7,8 @@ from app import schemas
 from app.helper.locationServices import extract_location_components, filter_relevant_suggestions
 from app.core.redis import get_redis_client
 
-router = APIRouter(dependencies=[Depends(get_current_user)])
+# router = APIRouter(dependencies=[Depends(get_current_user)])
+router = APIRouter()
 
 
 @router.post("/get-location", response_model=schemas.LocationFrmLatLngResponse)
