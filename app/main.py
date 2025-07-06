@@ -29,7 +29,7 @@ app = FastAPI(**fastapi_kwargs)
 if settings.ENV == 'nonprod':
     origins = [
         "http://localhost",
-        "http://localhost:3000", # Your Next.js frontend origin
+        "http://localhost:3000",  # Your Next.js frontend origin
         "http://127.0.0.1:3000",  # Another common local development address
         "http://192.168.1.3:3000",
         "https://motog-app-fe.vercel.app",
@@ -38,7 +38,13 @@ if settings.ENV == 'nonprod':
 elif settings.ENV == 'prod':
     origins = [
         "https://www.gomotog.com",
-        "https://motog-app-fe-liart.vercel.app"
+        "https://motog-app-fe-liart.vercel.app",
+        "https://motog-app-fe.vercel.app",
+        "http://localhost",
+        "http://localhost:3000",  # Your Next.js frontend origin
+        "http://127.0.0.1:3000",  # Another common local development address
+        "http://192.168.1.3:3000",
+
     ]
 else:
     origins = []
@@ -54,9 +60,11 @@ app.add_middleware(
 # Include API routers
 app.include_router(api_router)
 
+
 @app.get("/", tags=["Root"])
 async def read_root():
     return {"message": "Welcome to MotoG API!"}
+
 
 @app.get(f"{settings.API_V1_STR}/test")
 def test_api_v1():
