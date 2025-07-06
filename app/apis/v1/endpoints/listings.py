@@ -56,10 +56,10 @@ async def create_listing(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ) -> Any:
-    if crud.get_listing_by_rc(db=db, rc=listing.reg_no):
+    if crud.get_active_listing_by_rc(db=db, rc=listing.reg_no):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A listing with the RC already exists.",
+            detail="An active listing with the RC already exists.",
         )
     listing = crud.create_vehicle_listing(
         db=db, listing=listing, user_id=current_user.id)

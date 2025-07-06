@@ -182,6 +182,10 @@ def get_listing_by_rc(db: Session, rc: str):
     return db.query(models.VehicleListing).filter(models.VehicleListing.reg_no == rc).first()
 
 
+def get_active_listing_by_rc(db: Session, rc: str):
+    return db.query(models.VehicleListing).filter(models.VehicleListing.reg_no == rc, models.VehicleListing.is_active == True).first()
+
+
 def delete_listing(db: Session, listing_id: int, user_id: int):
     listing = db.query(models.VehicleListing).filter(
         models.VehicleListing.id == listing_id,
