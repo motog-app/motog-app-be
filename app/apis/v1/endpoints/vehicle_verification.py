@@ -13,6 +13,7 @@ router = APIRouter()
 @router.post("/vehicle-verify", response_model=schemas.VehicleVerificationResponse)
 def verify_vehicle_rc(request: schemas.RCRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     # Check if already in DB
+    request.reg_no = request.reg_no.upper()
     existing = crud.get_verification_by_reg_no(db, request.reg_no)
     if existing:
         return schemas.VehicleVerificationResponse(

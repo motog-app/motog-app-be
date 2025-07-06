@@ -290,3 +290,18 @@ def get_homepage_listings(db: Session, city_input: str, limit: int = 10):
         models.VehicleListing.city.ilike(f"%{city_input}%"),
         subquery
     ).order_by(models.VehicleListing.created_at.desc()).limit(limit).all()
+
+
+def set_primary_image(db: Session, listing_id: int, image_id: str):
+    # Set all others to non-primary
+    db.query(models.ListingImage).filter(
+        models.ListingImage.listing_id == listing_id
+    ).update({models.ListingImage.is_primary: False})
+
+    # Set the new primary
+    db.query(models.ListingImage).filter(
+        models.ListingImage.id == image_id,
+        models.ListingImage.listing_id == listing_id
+    ).update({models.ListingImage.is_primary: True})
+
+    db.commit()
