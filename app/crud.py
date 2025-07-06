@@ -150,7 +150,7 @@ def get_vehicle_listings(
         query = query.filter(models.VehicleListing.user_id == owner_id)
 
     mfg_year = cast(func.substring(
-        models.VehicleVerification.raw_data['vehicle_manufacturing_month_year'].astext, 4, 4
+        models.VehicleVerification.raw_data['reg_date'].astext, 1, 4
     ), Integer)
 
     if min_year:
@@ -160,8 +160,8 @@ def get_vehicle_listings(
 
     # Apply distinct and ordering
     mfg_date = func.to_date(
-        models.VehicleVerification.raw_data['vehicle_manufacturing_month_year'].astext,
-        'MM/YYYY'
+        models.VehicleVerification.raw_data['reg_date'].astext,
+        'YYYY-MM-DD'
     )
     return (
         query.distinct(mfg_date, models.VehicleListing.id)
