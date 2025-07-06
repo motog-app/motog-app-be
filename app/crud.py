@@ -101,6 +101,7 @@ def get_vehicle_listings(
     db: Session,
     skip: int = 0,
     limit: int = 10,
+    q: Optional[str] = None,
     city: Optional[str] = None,
     vehicle_type: Optional[models.VehicleTypeEnum] = None,
     min_price: Optional[int] = None,
@@ -116,6 +117,18 @@ def get_vehicle_listings(
         .join(models.VehicleVerification, models.VehicleListing.reg_no == models.VehicleVerification.reg_no)
         .filter(models.VehicleListing.is_active == True)
     )
+
+    if q:
+        q = re.sub(r"[^a-zA-Z0-9\s]", "", q).lower().strip()
+        keywords = q.split()
+        if keywords:
+            search_conditions = [
+                func.lower(models.VehicleVerification.raw_data['vehicle_manufacturer_name'].astext).ilike(f"%{kw}%") |
+                func.lower(models.VehicleVerification.raw_data['model'].astext).ilike(
+                    f"%{kw}%")
+                for kw in keywords
+            ]
+            query = query.filter(or_(*search_conditions))
 
     if city:
         query = query.filter(
@@ -145,7 +158,17 @@ def get_vehicle_listings(
     if max_year:
         query = query.filter(mfg_year <= max_year)
 
-    return query.order_by(models.VehicleListing.created_at.desc()).offset(skip).limit(limit).all()
+    # Apply distinct and ordering
+    mfg_date = func.to_date(
+        models.VehicleVerification.raw_data['vehicle_manufacturing_month_year'].astext,
+        'MM/YYYY'
+    )
+    return (
+        query.distinct(mfg_date, models.VehicleListing.id)
+        .order_by(mfg_date.desc(), models.VehicleListing.id.desc())
+        .offset(skip).limit(limit)
+        .all()
+    )
 
 
 def get_listing_by_id(db: Session, listing_id: int):
@@ -267,35 +290,3 @@ def get_homepage_listings(db: Session, city_input: str, limit: int = 10):
         models.VehicleListing.city.ilike(f"%{city_input}%"),
         subquery
     ).order_by(models.VehicleListing.created_at.desc()).limit(limit).all()
-
-
-def search_vehicle_listings(db: Session, q: str, skip: int = 0, limit: int = 10):
-    q = re.sub(r"[^a-zA-Z0-9\s]", "", q).lower().strip()
-    keywords = q.split()
-
-    query = (
-        db.query(models.VehicleListing)
-        .join(models.VehicleVerification, models.VehicleListing.reg_no == models.VehicleVerification.reg_no)
-        .filter(models.VehicleListing.is_active == True)
-    )
-
-    if keywords:
-        conditions = [
-            func.lower(models.VehicleVerification.raw_data['vehicle_manufacturer_name'].astext).ilike(f"%{kw}%") |
-            func.lower(models.VehicleVerification.raw_data['model'].astext).ilike(
-                f"%{kw}%")
-            for kw in keywords
-        ]
-        query = query.filter(or_(*conditions))
-
-    mfg_date = func.to_date(
-        models.VehicleVerification.raw_data['vehicle_manufacturing_month_year'].astext,
-        'MM/YYYY'
-    )
-
-    return (
-        query.distinct(mfg_date, models.VehicleListing.id)
-        .order_by(mfg_date.desc(), models.VehicleListing.id.desc())
-        .offset(skip).limit(limit)
-        .all()
-    )

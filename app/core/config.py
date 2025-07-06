@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = Field("MotoG API", env="PROJECT_NAME")
     API_V1_STR: str = Field(env="API_V1_STR")
     ENV: str = Field("nonprod", env="ENV")
-    SERVER_HOST: str = Field("http://localhost:8000", env="SERVER_HOST")
+    FRONTEND_SERVER_HOST: str = Field("http://localhost:8000", env="FRONTEND_SERVER_HOST")
 
     # Database Settings
     DATABASE_URL: str = Field(..., env="DATABASE_URL") # '...' makes this field required

@@ -5,7 +5,8 @@ from .email_sender import send_email
 
 async def send_verification_email(email: str):
     token = create_email_verification_token(email)
-    verification_url = f"{settings.SERVER_HOST}/api/v1/verify-email?token={token}"
+    # verification_url = f"{settings.FRONTEND_SERVER_HOST}/api/v1/verify-email?token={token}"
+    verification_url = f"{settings.FRONTEND_SERVER_HOST}/verify-email/{token}"
     
     html_content = f"""
     <html>
@@ -22,7 +23,8 @@ async def send_verification_email(email: str):
 
 async def send_password_reset_email(email: str):
     token = create_password_reset_token(email)
-    reset_url = f"{settings.SERVER_HOST}/api/v1/reset-password?token={token}"
+    # reset_url = f"{settings.FRONTEND_SERVER_HOST}/api/v1/reset-password?token={token}"
+    reset_url = f"{settings.FRONTEND_SERVER_HOST}/reset-password/{token}"
 
     html_content = f"""
     <html>
