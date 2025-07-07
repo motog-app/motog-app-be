@@ -1,6 +1,6 @@
 def extract_location_components(response):
     typesToCheck = [
-        "sublocality", "locality", "administrative_area_level_7", "administrative_area_level_6",
+        "locality", "sublocality", "administrative_area_level_7", "administrative_area_level_6",
         "administrative_area_level_5", "administrative_area_level_4", "administrative_area_level_3",
         "administrative_area_level_2"
     ]
@@ -15,6 +15,10 @@ def extract_location_components(response):
                 break
         if addr["mainText"]:
             break
+    
+    # for x in addr_comp:
+    #     if "administrative_area_level_3" in x['types']:
+    #         addr["District"] = x['long_name']
 
     # Extract State (administrative_area_level_1)
     for x in addr_comp:
