@@ -109,18 +109,23 @@ class VehicleVerificationResponse(BaseModel):
     data: dict
 
 
-class LocationFrmLatLngRequest(BaseModel):
-    lat: str = Field(..., example="24.5164769",
-                     description="Latitute of the Location")
-    lng: str = Field(..., example="93.9582257",
-                     description="Longitude of the Location")
+class LocationRequest(BaseModel):
+    lat: Optional[str] = Field(None, example="24.5164769", description="Latitude of the Location")
+    lng: Optional[str] = Field(None, example="93.9582257", description="Longitude of the Location")
+    placeId: Optional[str] = Field(None, example="ChIJx1TRmPU4STcRRIakUus7TY4", description="Google Places API Place ID")
 
 
-class LocationFrmLatLngResponse(BaseModel):
-    mainText: str = Field(...,
-                          description="The main address text or Place name")
-    State: str = Field(..., description="State name")
-    Country: str = Field(..., description="Country name")
+class LocationDetail(BaseModel):
+    mainText: str = Field(..., description="The main address text or Place name")
+    secondaryText: Optional[str] = Field(None, description="The secondary address text")
+    state: str = Field(..., description="State name")
+    country: str = Field(..., description="Country name")
+    lat: float
+    lng: float
+    placeId: Optional[str] = None
+
+
+
 
 
 class LocAutoCompleteRequest(BaseModel):
