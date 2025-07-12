@@ -98,6 +98,7 @@ class VehicleListing(VehicleListingBase):
     owner_email: Optional[EmailStr] = None
     rc_details: Optional[Any] = None
     images: List[ListingImage] = []
+    distance: Optional[float] = None
 
     class Config:
         from_attributes = True
