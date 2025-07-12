@@ -62,8 +62,8 @@ def create_vehicle_listing(db: Session, listing: schemas.VehicleListingCreate, u
 
 def get_vehicle_listings(
     db: Session,
-    lat: Optional[float] = None,
-    lng: Optional[float] = None,
+    lat: float,
+    lng: float,
     skip: int = 0,
     limit: int = 10,
     q: Optional[str] = None,
@@ -78,12 +78,16 @@ def get_vehicle_listings(
     radii: List[int] = [30, 60, 100],
     min_results: int = 10
 ):
-    for radius in radii:
-        # Calculate bounding box coordinates
-        # Earth's radius in kilometers
-        R = 6371
+    # Preprocess search query once outside the loop
+    if q:
+        q_clean = re.sub(r"[^a-zA-Z0-9\s]", "", q).lower().strip()
+        keywords = q_clean.split()
+    else:
+        keywords = []
 
-        # Angular distance in radians
+    for radius in radii:
+        # Bounding box optimization
+        R = 6371  # Earth radius in km
         delta_lat = radius / R
         delta_lng = radius / (R * math.cos(math.radians(lat)))
 
@@ -92,34 +96,45 @@ def get_vehicle_listings(
         min_lng = lng - math.degrees(delta_lng)
         max_lng = lng + math.degrees(delta_lng)
 
+        # Haversine distance expression
         haversine_formula = 6371 * func.acos(
-            func.cos(func.radians(bindparam('lat'))) * func.cos(func.radians(models.VehicleListing.latitude)) * func.cos(func.radians(models.VehicleListing.longitude) - func.radians(bindparam('lng'))) +
+            func.cos(func.radians(bindparam('lat'))) *
+            func.cos(func.radians(models.VehicleListing.latitude)) *
+            func.cos(func.radians(models.VehicleListing.longitude) - func.radians(bindparam('lng'))) +
             func.sin(func.radians(bindparam('lat'))) *
             func.sin(func.radians(models.VehicleListing.latitude))
         )
 
+        # Base query
         query = (
             db.query(models.VehicleListing,
                      haversine_formula.label("distance"))
-            .join(models.VehicleVerification, models.VehicleListing.reg_no == models.VehicleVerification.reg_no)
-            .filter(models.VehicleListing.is_active == True)
+            .join(
+                models.VehicleVerification,
+                models.VehicleListing.reg_no == models.VehicleVerification.reg_no
+            )
+            .filter(models.VehicleListing.is_active.is_(True))
             .filter(models.VehicleListing.latitude.between(min_lat, max_lat))
             .filter(models.VehicleListing.longitude.between(min_lng, max_lng))
             .filter(haversine_formula < radius)
         )
 
-        if q:
-            q = re.sub(r"[^a-zA-Z0-9\s]", "", q).lower().strip()
-            keywords = q.split()
-            if keywords:
-                search_conditions = [
-                    func.lower(func.trim(models.VehicleVerification.raw_data['vehicle_manufacturer_name'].astext)).ilike(f"%{kw}%") |
-                    func.lower(func.trim(models.VehicleVerification.raw_data['model'].astext)).ilike(
-                        f"%{kw}%")
-                    for kw in keywords
-                ]
-                query = query.filter(and_(*search_conditions))
+        # Text search filtering
+        if keywords:
+            search_conditions = [
+                func.lower(
+                    func.trim(
+                        models.VehicleVerification.raw_data['vehicle_manufacturer_name'].astext)
+                ).ilike(f"%{kw}%") |
+                func.lower(
+                    func.trim(
+                        models.VehicleVerification.raw_data['model'].astext)
+                ).ilike(f"%{kw}%")
+                for kw in keywords
+            ]
+            query = query.filter(and_(*search_conditions))
 
+        # Apply numeric filters only if provided
         if vehicle_type:
             query = query.filter(
                 models.VehicleListing.vehicle_type == vehicle_type)
@@ -136,29 +151,43 @@ def get_vehicle_listings(
         if owner_id is not None:
             query = query.filter(models.VehicleListing.user_id == owner_id)
 
-        mfg_year = cast(func.substring(
-            models.VehicleVerification.raw_data['reg_date'].astext, 1, 4
-        ), Integer)
+        # Year filter — calculate only if needed
+        if min_year or max_year:
+            mfg_year = cast(
+                func.substring(
+                    models.VehicleVerification.raw_data['reg_date'].astext,
+                    1,
+                    4
+                ),
+                Integer
+            )
+            if min_year:
+                query = query.filter(mfg_year >= min_year)
+            if max_year:
+                query = query.filter(mfg_year <= max_year)
 
-        if min_year:
-            query = query.filter(mfg_year >= min_year)
-        if max_year:
-            query = query.filter(mfg_year <= max_year)
-
-        # Apply distinct and ordering
+        # Ordering — extract date only once
         mfg_date = func.to_date(
             models.VehicleVerification.raw_data['reg_date'].astext,
             'YYYY-MM-DD'
         )
 
-        print(query)
-
+        # Final query execution
         results = (
-            query.distinct(haversine_formula.label("distance"),
-                           mfg_date, models.VehicleListing.id)
-            .order_by(haversine_formula.label("distance"), mfg_date.desc(), models.VehicleListing.id.desc())
+            query
+            .distinct(
+                haversine_formula.label("distance"),
+                mfg_date,
+                models.VehicleListing.id
+            )
+            .order_by(
+                haversine_formula.label("distance"),
+                mfg_date.desc(),
+                models.VehicleListing.id.desc()
+            )
             .params(lat=lat, lng=lng)
-            .offset(skip).limit(limit)
+            .offset(skip)
+            .limit(limit)
             .all()
         )
 
@@ -185,6 +214,7 @@ def get_active_listing_by_rc(db: Session, rc: str):
 
 def get_active_listing_by_rc(db: Session, rc: str):
     return db.query(models.VehicleListing).filter(models.VehicleListing.reg_no == rc, models.VehicleListing.is_active == True).first()
+
 
 def get_user_vehicle_listings(
     db: Session,
