@@ -64,6 +64,8 @@ class VehicleListingBase(BaseModel):
     price: int = Field(..., gt=0)
     usr_inp_city: str = Field(..., min_length=2)
     city: str = Field(..., min_length=2)
+    latitude: float
+    longitude: float
     seller_phone: str = Field(..., min_length=10, max_length=15)
     description: Optional[str] = None
 
@@ -74,6 +76,8 @@ class VehicleListingCreate(BaseModel):
     kilometers_driven: int = Field(..., ge=0)
     price: int = Field(..., gt=0)
     city: str = Field(..., min_length=2)
+    latitude: float
+    longitude: float
     seller_phone: str = Field(..., min_length=10, max_length=15)
     description: Optional[str] = None
 

@@ -42,8 +42,8 @@ def get_my_listings(
     skip: int = 0,
     limit: int = 10,
 ):
-    listings = crud.get_vehicle_listings(
-        db=db, skip=skip, limit=limit, owner_id=current_user.id)
+    listings = crud.get_user_vehicle_listings(
+        db=db, skip=skip, limit=limit, user_id=current_user.id)
     for listing in listings:
         listing.rc_details = listing.verification.raw_data if listing.verification else None
         listing.owner_email = current_user.email
@@ -69,11 +69,12 @@ async def create_listing(
 
 @router.get("/", response_model=List[schemas.VehicleListing])
 def read_listings(
+    lat: float,
+    lng: float,
     db: Session = Depends(get_db),
     skip: int = 0,
     limit: int = 10,
     search_q: Optional[str] = None,
-    city: Optional[str] = None,
     vehicle_type: Optional[schemas.VehicleTypeEnum] = None,
     min_price: Optional[int] = None,
     max_price: Optional[int] = None,
@@ -84,10 +85,11 @@ def read_listings(
 ) -> Any:
     listings = crud.get_vehicle_listings(
         db=db,
+        lat=lat,
+        lng=lng,
         skip=skip,
         limit=limit,
         q=search_q,
-        city=city,
         vehicle_type=vehicle_type,
         min_price=min_price,
         max_price=max_price,
@@ -96,9 +98,10 @@ def read_listings(
         min_km_driven=min_km_driven,
         max_km_driven=max_km_driven
     )
-    for listing in listings:
+    for listing, distance in listings:
         enrich_listing(listing, db)
-    return listings
+        listing.distance = distance
+    return [listing for listing, distance in listings]
 
 
 @router.get("/{listing_id}", response_model=schemas.VehicleListing)

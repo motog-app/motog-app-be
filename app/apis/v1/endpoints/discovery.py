@@ -11,9 +11,9 @@ from app.core.config import settings
 router = APIRouter()
 
 @router.get("/homepage-listings", response_model=List[schemas.VehicleListing])
-def homepage_listings(city: str, db: Session = Depends(get_db)):
-    listings = crud.get_homepage_listings(db, city_input=city)
-    for listing in listings:
+def homepage_listings(lat: float, lng: float, db: Session = Depends(get_db)):
+    listings = crud.get_homepage_listings(db, lat=lat, lng=lng)
+    for listing, distance in listings:
         if listing.owner:
             listing.owner_email = listing.owner.email
         else:
@@ -21,7 +21,8 @@ def homepage_listings(city: str, db: Session = Depends(get_db)):
             if owner:
                 listing.owner_email = owner.email
         listing.rc_details = listing.verification.raw_data
-    return listings
+        listing.distance = distance
+    return [listing for listing, distance in listings]
 
 def boosted(): pass
 
