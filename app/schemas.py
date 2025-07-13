@@ -86,6 +86,8 @@ class VehicleListingUpdate(BaseModel):
     kilometers_driven: Optional[int] = Field(None, ge=0)
     price: Optional[int] = Field(None, gt=0)
     city: Optional[str] = Field(None, min_length=2)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     seller_phone: Optional[str] = Field(None, min_length=10, max_length=15)
     description: Optional[str] = Field(None, min_length=1, max_length=250)
 
