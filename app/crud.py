@@ -1,13 +1,16 @@
 # app/crud.py
 
+from sqlalchemy import func, or_, and_, cast, Integer, bindparam
 import re
 import json
+import math
 from typing import Optional, List
 
 import googlemaps
 import redis
 from sqlalchemy import func, or_, cast, Integer
 from sqlalchemy.orm import Session
+from fastapi import HTTPException
 
 from . import models, schemas
 from .core.config import settings
@@ -19,40 +22,6 @@ GEOCODE_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 
 
 # --- Helper Functions ---
-
-def _resolve_city_location(input_city: str):
-    cache_key = f"geocode:{input_city.lower()}"
-    cached_data = redis_client.get(cache_key)
-    if cached_data:
-        resolved_str, lat, lng = json.loads(cached_data)
-        return resolved_str, lat, lng
-
-    resolved = {input_city.lower()}
-    lat, lng = None, None
-
-    try:
-        geocode_result = gmaps.geocode(input_city)
-        if geocode_result:
-            loc = geocode_result[0]["geometry"]["location"]
-            lat, lng = loc["lat"], loc["lng"]
-
-            for comp in geocode_result[0]["address_components"]:
-                types = comp.get("types", [])
-                if any(t in types for t in ["sublocality", "locality", "administrative_area_level_2", "administrative_area_level_1"]):
-                    resolved.update(
-                        {comp["long_name"].lower(), comp["short_name"].lower()})
-
-            if "delhi" in resolved:
-                resolved.add("new delhi")
-
-    except Exception as e:
-        print(f"Google Maps API error: {e}")
-
-    resolved_str = "|".join(sorted(resolved))
-    # Cache the result
-    redis_client.setex(cache_key, GEOCODE_CACHE_TTL_SECONDS,
-                       json.dumps([resolved_str, lat, lng]))
-    return resolved_str, lat, lng
 
 
 # --- User CRUD ---
@@ -81,15 +50,10 @@ def create_user(db: Session, user: schemas.UserCreate):
 # --- Vehicle Listing CRUD ---
 
 def create_vehicle_listing(db: Session, listing: schemas.VehicleListingCreate, user_id: int):
-    location_string, lat, lng = _resolve_city_location(listing.city)
-
     db_listing = models.VehicleListing(
-        **listing.model_dump(exclude={"city"}),
+        **listing.model_dump(),
         user_id=user_id,
-        city=location_string,
-        usr_inp_city=listing.city,
-        latitude=lat,
-        longitude=lng
+        usr_inp_city=listing.city
     )
     db.add(db_listing)
     db.commit()
@@ -99,10 +63,11 @@ def create_vehicle_listing(db: Session, listing: schemas.VehicleListingCreate, u
 
 def get_vehicle_listings(
     db: Session,
+    lat: float,
+    lng: float,
     skip: int = 0,
     limit: int = 10,
     q: Optional[str] = None,
-    city: Optional[str] = None,
     vehicle_type: Optional[models.VehicleTypeEnum] = None,
     min_price: Optional[int] = None,
     max_price: Optional[int] = None,
@@ -111,64 +76,126 @@ def get_vehicle_listings(
     min_km_driven: Optional[int] = None,
     max_km_driven: Optional[int] = None,
     owner_id: Optional[int] = None,
+    radii: List[int] = [30, 60, 100],
+    min_results: int = 10
 ):
-    query = (
-        db.query(models.VehicleListing)
-        .join(models.VehicleVerification, models.VehicleListing.reg_no == models.VehicleVerification.reg_no)
-        .filter(models.VehicleListing.is_active == True)
-    )
-
+    # Preprocess search query once outside the loop
     if q:
-        q = re.sub(r"[^a-zA-Z0-9\s]", "", q).lower().strip()
-        keywords = q.split()
+        q_clean = re.sub(r"[^a-zA-Z0-9\s]", "", q).lower().strip()
+        keywords = q_clean.split()
+    else:
+        keywords = []
+
+    for radius in radii:
+        # Bounding box optimization
+        R = 6371  # Earth radius in km
+        delta_lat = radius / R
+        delta_lng = radius / (R * math.cos(math.radians(lat)))
+
+        min_lat = lat - math.degrees(delta_lat)
+        max_lat = lat + math.degrees(delta_lat)
+        min_lng = lng - math.degrees(delta_lng)
+        max_lng = lng + math.degrees(delta_lng)
+
+        # Haversine distance expression
+        haversine_formula = 6371 * func.acos(
+            func.cos(func.radians(bindparam('lat'))) *
+            func.cos(func.radians(models.VehicleListing.latitude)) *
+            func.cos(func.radians(models.VehicleListing.longitude) - func.radians(bindparam('lng'))) +
+            func.sin(func.radians(bindparam('lat'))) *
+            func.sin(func.radians(models.VehicleListing.latitude))
+        )
+
+        # Base query
+        query = (
+            db.query(models.VehicleListing,
+                     haversine_formula.label("distance"))
+            .join(
+                models.VehicleVerification,
+                models.VehicleListing.reg_no == models.VehicleVerification.reg_no
+            )
+            .filter(models.VehicleListing.is_active.is_(True))
+            .filter(models.VehicleListing.latitude.between(min_lat, max_lat))
+            .filter(models.VehicleListing.longitude.between(min_lng, max_lng))
+            .filter(haversine_formula < radius)
+        )
+
+        # Text search filtering
         if keywords:
             search_conditions = [
-                func.lower(models.VehicleVerification.raw_data['vehicle_manufacturer_name'].astext).ilike(f"%{kw}%") |
-                func.lower(models.VehicleVerification.raw_data['model'].astext).ilike(
-                    f"%{kw}%")
+                func.lower(
+                    func.trim(
+                        models.VehicleVerification.raw_data['vehicle_manufacturer_name'].astext)
+                ).ilike(f"%{kw}%") |
+                func.lower(
+                    func.trim(
+                        models.VehicleVerification.raw_data['model'].astext)
+                ).ilike(f"%{kw}%")
                 for kw in keywords
             ]
-            query = query.filter(or_(*search_conditions))
+            query = query.filter(and_(*search_conditions))
 
-    if city:
-        query = query.filter(
-            models.VehicleListing.city.ilike(f"%{city.lower()}%"))
-    if vehicle_type:
-        query = query.filter(
-            models.VehicleListing.vehicle_type == vehicle_type)
-    if min_price is not None:
-        query = query.filter(models.VehicleListing.price >= min_price)
-    if max_price is not None:
-        query = query.filter(models.VehicleListing.price <= max_price)
-    if min_km_driven is not None:
-        query = query.filter(
-            models.VehicleListing.kilometers_driven >= min_km_driven)
-    if max_km_driven is not None:
-        query = query.filter(
-            models.VehicleListing.kilometers_driven <= max_km_driven)
-    if owner_id is not None:
-        query = query.filter(models.VehicleListing.user_id == owner_id)
+        # Apply numeric filters only if provided
+        if vehicle_type:
+            query = query.filter(
+                models.VehicleListing.vehicle_type == vehicle_type)
+        if min_price is not None:
+            query = query.filter(models.VehicleListing.price >= min_price)
+        if max_price is not None:
+            query = query.filter(models.VehicleListing.price <= max_price)
+        if min_km_driven is not None:
+            query = query.filter(
+                models.VehicleListing.kilometers_driven >= min_km_driven)
+        if max_km_driven is not None:
+            query = query.filter(
+                models.VehicleListing.kilometers_driven <= max_km_driven)
+        if owner_id is not None:
+            query = query.filter(models.VehicleListing.user_id == owner_id)
 
-    mfg_year = cast(func.substring(
-        models.VehicleVerification.raw_data['reg_date'].astext, 1, 4
-    ), Integer)
+        # Year filter — calculate only if needed
+        if min_year or max_year:
+            mfg_year = cast(
+                func.substring(
+                    models.VehicleVerification.raw_data['reg_date'].astext,
+                    1,
+                    4
+                ),
+                Integer
+            )
+            if min_year:
+                query = query.filter(mfg_year >= min_year)
+            if max_year:
+                query = query.filter(mfg_year <= max_year)
 
-    if min_year:
-        query = query.filter(mfg_year >= min_year)
-    if max_year:
-        query = query.filter(mfg_year <= max_year)
+        # Ordering — extract date only once
+        mfg_date = func.to_date(
+            models.VehicleVerification.raw_data['reg_date'].astext,
+            'YYYY-MM-DD'
+        )
 
-    # Apply distinct and ordering
-    mfg_date = func.to_date(
-        models.VehicleVerification.raw_data['reg_date'].astext,
-        'YYYY-MM-DD'
-    )
-    return (
-        query.distinct(mfg_date, models.VehicleListing.id)
-        .order_by(mfg_date.desc(), models.VehicleListing.id.desc())
-        .offset(skip).limit(limit)
-        .all()
-    )
+        # Final query execution
+        results = (
+            query
+            .distinct(
+                haversine_formula.label("distance"),
+                mfg_date,
+                models.VehicleListing.id
+            )
+            .order_by(
+                haversine_formula.label("distance"),
+                mfg_date.desc(),
+                models.VehicleListing.id.desc()
+            )
+            .params(lat=lat, lng=lng)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
+        if len(results) >= min_results:
+            return results
+
+    return results
 
 
 def get_listing_by_id(db: Session, listing_id: int):
@@ -184,6 +211,27 @@ def get_listing_by_rc(db: Session, rc: str):
 
 def get_active_listing_by_rc(db: Session, rc: str):
     return db.query(models.VehicleListing).filter(models.VehicleListing.reg_no == rc, models.VehicleListing.is_active == True).first()
+
+
+def get_active_listing_by_rc(db: Session, rc: str):
+    return db.query(models.VehicleListing).filter(models.VehicleListing.reg_no == rc, models.VehicleListing.is_active == True).first()
+
+
+def get_user_vehicle_listings(
+    db: Session,
+    user_id: int,
+    skip: int = 0,
+    limit: int = 10
+):
+    return (
+        db.query(models.VehicleListing)
+        .filter(models.VehicleListing.user_id == user_id)
+        .filter(models.VehicleListing.is_active == True)
+        .order_by(models.VehicleListing.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def delete_listing(db: Session, listing_id: int, user_id: int):
@@ -212,11 +260,11 @@ def update_vehicle_listing(db: Session, listing_id: int, listing_in: schemas.Veh
     data = listing_in.model_dump(exclude_unset=True)
 
     if "city" in data:
+        # If city is updated, ensure lat/lng are also provided
+        if "latitude" not in data or "longitude" not in data:
+            raise HTTPException(status_code=400, detail="Latitude and longitude must be provided when updating city.")
+        # Update usr_inp_city to match the new city
         data["usr_inp_city"] = data["city"]
-        resolved_str, lat, lng = _resolve_city_location(data["city"])
-        data["city"] = resolved_str
-        data["latitude"] = lat
-        data["longitude"] = lng
 
     for k, v in data.items():
         setattr(listing, k, v)
@@ -284,16 +332,10 @@ def update_listing_image_url(db: Session, image_id: int, new_url: str):
     return None
 
 
-def get_homepage_listings(db: Session, city_input: str, limit: int = 10):
-    city_input = city_input.lower().strip()
-    subquery = db.query(models.ListingImage.id).filter(
-        models.ListingImage.listing_id == models.VehicleListing.id).exists()
-
-    return db.query(models.VehicleListing).filter(
-        models.VehicleListing.is_active == True,
-        models.VehicleListing.city.ilike(f"%{city_input}%"),
-        subquery
-    ).order_by(models.VehicleListing.created_at.desc()).limit(limit).all()
+def get_homepage_listings(db: Session, lat: float, lng: float, limit: int = 10):
+    # Use the optimized get_vehicle_listings for homepage listings
+    # Default to a reasonable radius for homepage, e.g., 100 km
+    return get_vehicle_listings(db=db, lat=lat, lng=lng, limit=limit, radii=[100], min_results=5)
 
 
 def set_primary_image(db: Session, listing_id: int, image_id: str):

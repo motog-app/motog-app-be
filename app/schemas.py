@@ -64,6 +64,8 @@ class VehicleListingBase(BaseModel):
     price: int = Field(..., gt=0)
     usr_inp_city: str = Field(..., min_length=2)
     city: str = Field(..., min_length=2)
+    latitude: float
+    longitude: float
     seller_phone: str = Field(..., min_length=10, max_length=15)
     description: Optional[str] = None
 
@@ -74,6 +76,8 @@ class VehicleListingCreate(BaseModel):
     kilometers_driven: int = Field(..., ge=0)
     price: int = Field(..., gt=0)
     city: str = Field(..., min_length=2)
+    latitude: float
+    longitude: float
     seller_phone: str = Field(..., min_length=10, max_length=15)
     description: Optional[str] = None
 
@@ -82,6 +86,8 @@ class VehicleListingUpdate(BaseModel):
     kilometers_driven: Optional[int] = Field(None, ge=0)
     price: Optional[int] = Field(None, gt=0)
     city: Optional[str] = Field(None, min_length=2)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     seller_phone: Optional[str] = Field(None, min_length=10, max_length=15)
     description: Optional[str] = Field(None, min_length=1, max_length=250)
 
@@ -94,6 +100,7 @@ class VehicleListing(VehicleListingBase):
     owner_email: Optional[EmailStr] = None
     rc_details: Optional[Any] = None
     images: List[ListingImage] = []
+    distance: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -109,18 +116,23 @@ class VehicleVerificationResponse(BaseModel):
     data: dict
 
 
-class LocationFrmLatLngRequest(BaseModel):
-    lat: str = Field(..., example="24.5164769",
-                     description="Latitute of the Location")
-    lng: str = Field(..., example="93.9582257",
-                     description="Longitude of the Location")
+class LocationRequest(BaseModel):
+    lat: Optional[str] = Field(None, example="24.5164769", description="Latitude of the Location")
+    lng: Optional[str] = Field(None, example="93.9582257", description="Longitude of the Location")
+    placeId: Optional[str] = Field(None, example="ChIJx1TRmPU4STcRRIakUus7TY4", description="Google Places API Place ID")
 
 
-class LocationFrmLatLngResponse(BaseModel):
-    mainText: str = Field(...,
-                          description="The main address text or Place name")
-    State: str = Field(..., description="State name")
-    Country: str = Field(..., description="Country name")
+class LocationDetail(BaseModel):
+    mainText: str = Field(..., description="The main address text or Place name")
+    secondaryText: Optional[str] = Field(None, description="The secondary address text")
+    state: str = Field(..., description="State name")
+    country: str = Field(..., description="Country name")
+    lat: float
+    lng: float
+    placeId: Optional[str] = None
+
+
+
 
 
 class LocAutoCompleteRequest(BaseModel):
