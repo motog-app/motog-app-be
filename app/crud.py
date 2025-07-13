@@ -10,6 +10,7 @@ import googlemaps
 import redis
 from sqlalchemy import func, or_, cast, Integer
 from sqlalchemy.orm import Session
+from fastapi import HTTPException
 
 from . import models, schemas
 from .core.config import settings
@@ -257,6 +258,13 @@ def update_vehicle_listing(db: Session, listing_id: int, listing_in: schemas.Veh
         return None
 
     data = listing_in.model_dump(exclude_unset=True)
+
+    if "city" in data:
+        # If city is updated, ensure lat/lng are also provided
+        if "latitude" not in data or "longitude" not in data:
+            raise HTTPException(status_code=400, detail="Latitude and longitude must be provided when updating city.")
+        # Update usr_inp_city to match the new city
+        data["usr_inp_city"] = data["city"]
 
     for k, v in data.items():
         setattr(listing, k, v)
