@@ -34,6 +34,7 @@ if settings.ENV == 'nonprod':
         "http://192.168.1.3:3000",
         "https://motog-app-fe.vercel.app",
         "https://www.gomotog.com",
+        "*",
     ]
 elif settings.ENV == 'prod':
     origins = [
