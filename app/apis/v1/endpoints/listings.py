@@ -10,7 +10,7 @@ import cloudinary.uploader
 
 from app import crud, schemas, models
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_current_user_optional
 from app.core.config import settings
 
 router = APIRouter()
@@ -105,11 +105,16 @@ def read_listings(
 
 
 @router.get("/{listing_id}", response_model=schemas.VehicleListing)
-def read_listing(listing_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)) -> Any:
+def read_listing(listing_id: int, 
+                 db: Session = Depends(get_db), 
+                 current_user: models.User = Depends(get_current_user_optional)) -> Any:
     listing = crud.get_listing_by_id(db, listing_id=listing_id)
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
     enrich_listing(listing, db)
+    if not current_user:
+        listing.owner_email = "please@log.in"
+        listing.seller_phone = "9876543210"
     return listing
 
 

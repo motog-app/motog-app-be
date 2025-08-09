@@ -6,10 +6,10 @@ python3 -m venv venv
 source venv/bin/activate
 
 #Populate requirements.txt
-pip freeze > requirements.txt
+pip3 freeze > requirements.txt
 
 #Install from requirements.txt
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 
 #run inside motog-app-be
 find . -name "__pycache__" -exec rm -rf {} +
