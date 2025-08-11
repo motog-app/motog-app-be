@@ -42,3 +42,8 @@ alembic revision --autogenerate -m "Initial database schema"
 alembic upgrade head
 alembic downgrade base or alembic downgrade head
 
+
+if fuel:
+    query = query.filter(
+    models.VehicleVerification.raw_data["type"].astext.ilike(f"%{fuel}%"))
+
