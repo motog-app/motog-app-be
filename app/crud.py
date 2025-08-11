@@ -122,7 +122,6 @@ def get_vehicle_listings(
             .filter(models.VehicleListing.longitude.between(min_lng, max_lng))
             .filter(haversine_formula < radius)
             .filter(models.ListingImage.listing_id.isnot(None))
-            .distinct()
         )
 
         # Text search filtering
@@ -212,10 +211,6 @@ def get_listing_by_id(db: Session, listing_id: int):
 
 def get_listing_by_rc(db: Session, rc: str):
     return db.query(models.VehicleListing).filter(models.VehicleListing.reg_no == rc).first()
-
-
-def get_active_listing_by_rc(db: Session, rc: str):
-    return db.query(models.VehicleListing).filter(models.VehicleListing.reg_no == rc, models.VehicleListing.is_active == True).first()
 
 
 def get_active_listing_by_rc(db: Session, rc: str):
