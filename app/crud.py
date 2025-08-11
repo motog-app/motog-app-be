@@ -1,6 +1,5 @@
 # app/crud.py
 
-from sqlalchemy import func, or_, and_, cast, Integer, bindparam
 import re
 import json
 import math
@@ -8,7 +7,7 @@ from typing import Optional, List
 
 import googlemaps
 import redis
-from sqlalchemy import func, or_, cast, Integer
+from sqlalchemy import func, or_, and_, cast, Integer, bindparam
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
@@ -114,10 +113,16 @@ def get_vehicle_listings(
                 models.VehicleVerification,
                 models.VehicleListing.reg_no == models.VehicleVerification.reg_no
             )
+            .join(
+                models.ListingImage,
+                models.VehicleListing.id == models.ListingImage.listing_id
+            )
             .filter(models.VehicleListing.is_active.is_(True))
             .filter(models.VehicleListing.latitude.between(min_lat, max_lat))
             .filter(models.VehicleListing.longitude.between(min_lng, max_lng))
             .filter(haversine_formula < radius)
+            .filter(models.ListingImage.listing_id.isnot(None))
+            .distinct()
         )
 
         # Text search filtering
@@ -262,7 +267,8 @@ def update_vehicle_listing(db: Session, listing_id: int, listing_in: schemas.Veh
     if "city" in data:
         # If city is updated, ensure lat/lng are also provided
         if "latitude" not in data or "longitude" not in data:
-            raise HTTPException(status_code=400, detail="Latitude and longitude must be provided when updating city.")
+            raise HTTPException(
+                status_code=400, detail="Latitude and longitude must be provided when updating city.")
         # Update usr_inp_city to match the new city
         data["usr_inp_city"] = data["city"]
 
