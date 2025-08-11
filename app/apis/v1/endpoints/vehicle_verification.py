@@ -6,6 +6,8 @@ from app.dependencies import get_current_user
 from app.core.config import settings
 import requests
 import uuid
+import redis
+from datetime import datetime, timedelta
 
 router = APIRouter()
 
@@ -21,6 +23,32 @@ def verify_vehicle_rc(request: schemas.RCRequest, db: Session = Depends(get_db),
             status=existing.status,
             data=existing.raw_data
         )
+    # Rate limiting logic
+    redis_client = redis.from_url(settings.REDIS_URL)
+    rate_limit_key = f"rate_limit:vehicle_verify:{current_user.id}"
+
+    pipe = redis_client.pipeline()
+    pipe.incr(rate_limit_key)
+    pipe.ttl(rate_limit_key)
+    count, ttl = pipe.execute()
+
+    # if key is new, ttl is -1. if key expires, ttl is -2
+    if ttl == -1:
+        now = datetime.now()
+        if now.month == 12:
+            next_month = datetime(now.year + 1, 1, 1)
+        else:
+            next_month = datetime(now.year, now.month + 1, 1)
+
+        end_of_month = next_month - timedelta(seconds=1)
+        expire_seconds = int((end_of_month - now).total_seconds())
+        # ensure expire_seconds is not negative
+        if expire_seconds > 0:
+            redis_client.expire(rate_limit_key, expire_seconds)
+
+    if count > 5:
+        raise HTTPException(
+            status_code=429, detail="Too many requests. Limit is 5 vehicle verifications per month.")
 
     # Prepare for Cashfree API Call
     headers = {
