@@ -20,3 +20,17 @@ ALTER SCHEMA public OWNER TO MOTOGAdmin;
 -- Ensure that the user has permission to create tables in the public schema
 ALTER DEFAULT PRIVILEGES IN SCHEMA public 
 GRANT ALL ON TABLES TO MOTOGAdmin;
+
+
+
+
+-- Boosts for a single listing
+INSERT INTO boost_packages (name, duration_days, price, type) VALUES
+('Bronze Boost', 7, 49.00, 'single_listing'),
+('Silver Boost', 30, 149.00, 'single_listing'),
+('Gold Boost', 90, 399.00, 'single_listing');
+
+-- Bundle boosts that apply to all of a user's listings
+INSERT INTO boost_packages (name, duration_days, price, type) VALUES
+('Monthly Pro Bundle', 30, 499.00, 'bundle'),
+('Quarterly Pro Bundle', 90, 1299.00, 'bundle');

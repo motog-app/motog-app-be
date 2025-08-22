@@ -4,11 +4,12 @@ import re
 import json
 import math
 from typing import Optional, List
+from datetime import datetime, timedelta
 
 import googlemaps
 import redis
-from sqlalchemy import func, or_, and_, cast, Integer, bindparam
-from sqlalchemy.orm import Session
+from sqlalchemy import func, or_, and_, cast, Integer, bindparam, case, exists
+from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 
 from . import models, schemas
@@ -105,10 +106,36 @@ def get_vehicle_listings(
             func.sin(func.radians(models.VehicleListing.latitude))
         )
 
+        # Boost status subquery/CTE could be complex. We'll create a case statement.
+        # This determines if a listing is boosted.
+        now = datetime.utcnow()
+        is_boosted_case = case(
+            (
+                exists().where(
+                    and_(
+                        models.UserBoost.listing_id == models.VehicleListing.id,
+                        models.UserBoost.start_date <= now,
+                        models.UserBoost.end_date >= now,
+                    )
+                ) |
+                exists().where(
+                    and_(
+                        models.UserBoost.user_id == models.VehicleListing.user_id,
+                        models.UserBoost.listing_id.is_(None), # Bundle boost
+                        models.UserBoost.start_date <= now,
+                        models.UserBoost.end_date >= now,
+                    )
+                ), 
+                True
+            ),
+            else_=False
+        ).label("is_boosted")
+
         # Base query
         query = (
             db.query(models.VehicleListing,
-                     haversine_formula.label("distance"))
+                     haversine_formula.label("distance"),
+                     is_boosted_case)
             .join(
                 models.VehicleVerification,
                 models.VehicleListing.reg_no == models.VehicleVerification.reg_no
@@ -181,14 +208,16 @@ def get_vehicle_listings(
         results = (
             query
             .distinct(
+                is_boosted_case,
                 haversine_formula.label("distance"),
                 mfg_date,
                 models.VehicleListing.id
             )
             .order_by(
+                is_boosted_case.desc(), # Boosted listings first
                 haversine_formula.label("distance"),
                 mfg_date.desc(),
-                models.VehicleListing.id.desc()
+                models.VehicleListing.id.desc() # Added for stable DISTINCT ON ordering
             )
             .params(lat=lat, lng=lng)
             .offset(skip)
@@ -223,11 +252,34 @@ def get_user_vehicle_listings(
     skip: int = 0,
     limit: int = 10
 ):
+    now = datetime.utcnow()
+    is_boosted_case = case(
+        (
+            exists().where(
+                and_(
+                    models.UserBoost.listing_id == models.VehicleListing.id,
+                    models.UserBoost.start_date <= now,
+                    models.UserBoost.end_date >= now,
+                )
+            ) |
+            exists().where(
+                and_(
+                    models.UserBoost.user_id == models.VehicleListing.user_id,
+                    models.UserBoost.listing_id.is_(None), # Bundle boost
+                    models.UserBoost.start_date <= now,
+                    models.UserBoost.end_date >= now,
+                )
+            ),
+            True
+        ),
+        else_=False
+    ).label("is_boosted")
+
     return (
-        db.query(models.VehicleListing)
+        db.query(models.VehicleListing, is_boosted_case)
         .filter(models.VehicleListing.user_id == user_id)
         .filter(models.VehicleListing.is_active == True)
-        .order_by(models.VehicleListing.created_at.desc())
+        .order_by(is_boosted_case.desc(), models.VehicleListing.created_at.desc())
         .offset(skip)
         .limit(limit)
         .all()
@@ -352,3 +404,65 @@ def set_primary_image(db: Session, listing_id: int, image_id: str):
     ).update({models.ListingImage.is_primary: True})
 
     db.commit()
+
+# --- Boost CRUD ---
+
+def list_boost_packages(db: Session, skip: int = 0, limit: int = 10):
+    return db.query(models.BoostPackage).filter(models.BoostPackage.is_active == True).offset(skip).limit(limit).all()
+
+def create_user_boost(db: Session, user_id: int, boost_in: schemas.UserBoostCreate):
+    # 1. Get the package details
+    package = db.query(models.BoostPackage).filter(models.BoostPackage.id == boost_in.package_id).first()
+    if not package:
+        raise HTTPException(status_code=404, detail="Boost package not found")
+    if not package.is_active:
+        raise HTTPException(status_code=400, detail="Boost package is not active")
+
+    # 2. Validate listing for single_listing boosts
+    if package.type == 'single_listing':
+        if not boost_in.listing_id:
+            raise HTTPException(status_code=400, detail="listing_id is required for this package type")
+        listing = db.query(models.VehicleListing).filter(
+            models.VehicleListing.id == boost_in.listing_id,
+            models.VehicleListing.user_id == user_id
+        ).first()
+        if not listing:
+            raise HTTPException(status_code=404, detail="Listing not found or you do not own this listing")
+
+    # 3. Create the boost record
+    start_date = datetime.utcnow()
+    end_date = start_date + timedelta(days=package.duration_days)
+
+    db_user_boost = models.UserBoost(
+        user_id=user_id,
+        package_id=boost_in.package_id,
+        listing_id=boost_in.listing_id if package.type == 'single_listing' else None,
+        start_date=start_date,
+        end_date=end_date
+    )
+    db.add(db_user_boost)
+    db.commit()
+    db.refresh(db_user_boost)
+    return db_user_boost
+
+def is_listing_boosted(db: Session, listing_id: int, user_id: int) -> bool:
+    now = datetime.utcnow()
+    # Check for a direct, active boost on the listing
+    direct_boost = db.query(models.UserBoost).filter(
+        models.UserBoost.listing_id == listing_id,
+        models.UserBoost.start_date <= now,
+        models.UserBoost.end_date >= now
+    ).first()
+
+    if direct_boost:
+        return True
+
+    # Check for an active bundle boost on the user
+    bundle_boost = db.query(models.UserBoost).filter(
+        models.UserBoost.user_id == user_id,
+        models.UserBoost.listing_id.is_(None), # This identifies a bundle boost
+        models.UserBoost.start_date <= now,
+        models.UserBoost.end_date >= now
+    ).first()
+
+    return bundle_boost is not None
