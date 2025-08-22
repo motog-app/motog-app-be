@@ -42,12 +42,15 @@ def get_my_listings(
     skip: int = 0,
     limit: int = 10,
 ):
-    listings = crud.get_user_vehicle_listings(
+    results = []
+    listings_with_boost_status = crud.get_user_vehicle_listings(
         db=db, skip=skip, limit=limit, user_id=current_user.id)
-    for listing in listings:
+    for listing, is_boosted in listings_with_boost_status:
         listing.rc_details = listing.verification.raw_data if listing.verification else None
         listing.owner_email = current_user.email
-    return listings
+        listing.is_boosted = is_boosted
+        results.append(listing)
+    return results
 
 
 @router.post("/", response_model=schemas.VehicleListing, status_code=status.HTTP_201_CREATED)
@@ -98,10 +101,13 @@ def read_listings(
         min_km_driven=min_km_driven,
         max_km_driven=max_km_driven
     )
-    for listing, distance in listings:
+    results = []
+    for listing, distance, is_boosted in listings:
         enrich_listing(listing, db)
         listing.distance = distance
-    return [listing for listing, distance in listings]
+        listing.is_boosted = is_boosted
+        results.append(listing)
+    return results
 
 
 @router.get("/{listing_id}", response_model=schemas.VehicleListing)
