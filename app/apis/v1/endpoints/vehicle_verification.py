@@ -7,7 +7,7 @@ from app.core.config import settings
 import requests
 import uuid
 import redis
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 router = APIRouter()
 
@@ -40,11 +40,11 @@ def verify_vehicle_rc(request: schemas.RCRequest, db: Session = Depends(get_db),
 
     # if key is new, ttl is -1. if key expires, ttl is -2
     if ttl == -1:
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         if now.month == 12:
-            next_month = datetime(now.year + 1, 1, 1)
+            next_month = datetime(now.year + 1, 1, 1, tzinfo=timezone.utc)
         else:
-            next_month = datetime(now.year, now.month + 1, 1)
+            next_month = datetime(now.year, now.month + 1, 1, tzinfo=timezone.utc)
 
         end_of_month = next_month - timedelta(seconds=1)
         expire_seconds = int((end_of_month - now).total_seconds())

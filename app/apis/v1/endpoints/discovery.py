@@ -13,7 +13,8 @@ router = APIRouter()
 @router.get("/homepage-listings", response_model=List[schemas.VehicleListing])
 def homepage_listings(lat: float, lng: float, db: Session = Depends(get_db)):
     listings = crud.get_homepage_listings(db, lat=lat, lng=lng)
-    for listing, distance in listings:
+    results = []
+    for listing, distance, is_boosted in listings:
         if listing.owner:
             listing.owner_email = listing.owner.email
         else:
@@ -22,7 +23,9 @@ def homepage_listings(lat: float, lng: float, db: Session = Depends(get_db)):
                 listing.owner_email = owner.email
         listing.rc_details = listing.verification.raw_data
         listing.distance = distance
-    return [listing for listing, distance in listings]
+        listing.is_boosted = is_boosted
+        results.append(listing)
+    return results
 
 def boosted(): pass
 

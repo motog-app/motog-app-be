@@ -1,7 +1,7 @@
 # app/schemas.py
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List, Any
-from datetime import datetime
+from datetime import datetime, date
 from .models import VehicleTypeEnum  # Import from your models
 from fastapi import UploadFile, File
 
@@ -101,6 +101,7 @@ class VehicleListing(VehicleListingBase):
     rc_details: Optional[Any] = None
     images: List[ListingImage] = []
     distance: Optional[float] = None
+    is_boosted: Optional[bool] = False
 
     class Config:
         from_attributes = True
@@ -178,3 +179,34 @@ class ResetPasswordRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str = Field(..., min_length=8)
     new_password: str = Field(..., min_length=8)
+
+# --- Boost Schemas ---
+
+class BoostPackageBase(BaseModel):
+    name: str
+    duration_days: int
+    price: float
+    type: str
+
+class BoostPackage(BoostPackageBase):
+    id: int
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+class UserBoostBase(BaseModel):
+    package_id: int
+    listing_id: Optional[int] = None
+
+class UserBoostCreate(UserBoostBase):
+    pass
+
+class UserBoost(UserBoostBase):
+    id: int
+    user_id: int
+    start_date: datetime
+    end_date: datetime
+
+    class Config:
+        from_attributes = True
