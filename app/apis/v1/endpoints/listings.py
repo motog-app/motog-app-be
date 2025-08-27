@@ -12,6 +12,7 @@ from app import crud, schemas, models
 from app.database import get_db
 from app.dependencies import get_current_user, get_current_user_optional
 from app.core.config import settings
+from app.helper.image_optimizer import optimize_image
 
 router = APIRouter()
 
@@ -111,8 +112,8 @@ def read_listings(
 
 
 @router.get("/{listing_id}", response_model=schemas.VehicleListing)
-def read_listing(listing_id: int, 
-                 db: Session = Depends(get_db), 
+def read_listing(listing_id: int,
+                 db: Session = Depends(get_db),
                  current_user: models.User = Depends(get_current_user_optional)) -> Any:
     listing = crud.get_listing_by_id(db, listing_id=listing_id)
     if not listing:
@@ -198,7 +199,10 @@ async def upload_listing_images(
 
     image_data = []
     for i, file in enumerate(files):
-        result = cloudinary.uploader.upload(file.file, folder="listing")
+        optimize_file = await optimize_image(file=file)
+        if isinstance(optimize_file, dict) and "error" in optimize_file:
+            raise HTTPException(status_code=400, detail=optimize_file["error"])
+        result = cloudinary.uploader.upload(optimize_file, folder="listing")
         image_data.append({
             "url": result.get("secure_url"),
             "is_primary": is_primary_flags[i]
@@ -239,7 +243,10 @@ async def update_listing_image(
     if not listing or listing.user_id != current_user.id:
         raise HTTPException(403, "Not authorized")
 
-    result = cloudinary.uploader.upload(file.file, folder="listing")
+    optimize_file = await optimize_image(file=file)
+    if isinstance(optimize_file, dict) and "error" in optimize_file:
+        raise HTTPException(status_code=400, detail=optimize_file["error"])
+    result = cloudinary.uploader.upload(optimize_file, folder="listing")
     updated = crud.update_listing_image_url(
         db, image_id, result.get("secure_url"))
     return updated.url
