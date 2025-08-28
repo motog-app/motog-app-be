@@ -1,12 +1,13 @@
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, UnidentifiedImageError, ImageOps
 import io
 import subprocess
 import tempfile
 import os
 
+
 async def optimize_image(file, max_size=(1024, 1024), quality=85):
     """
-    Optimizes an image by resizing, converting to JPEG, and compressing it.
+    Optimizes an image by resizing, auto rotate image (based on EXIF) converting to JPEG, and compressing it.
     Handles HEIC files by converting them to JPEG using the `heif-convert` command-line tool.
 
     :param file: A file-like object containing the image data.
@@ -29,7 +30,8 @@ async def optimize_image(file, max_size=(1024, 1024), quality=85):
     try:
         # Try to convert with heif-convert. This will work for HEIC/HEIF.
         # If it's not a HEIC file, heif-convert will fail, and we'll fall back to Pillow.
-        subprocess.run(['heif-convert', temp_in_path, temp_out_path], check=True, capture_output=True)
+        subprocess.run(['heif-convert', temp_in_path,
+                       temp_out_path], check=True, capture_output=True)
         image = Image.open(temp_out_path)
     except (subprocess.CalledProcessError, FileNotFoundError):
         # If heif-convert fails, try to open with Pillow directly.
@@ -43,6 +45,8 @@ async def optimize_image(file, max_size=(1024, 1024), quality=85):
         if os.path.exists(temp_out_path):
             os.unlink(temp_out_path)
 
+    # Auto Rotate Images
+    image = ImageOps.exif_transpose(image)
 
     # Resize the image
     image.thumbnail(max_size)
