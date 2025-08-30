@@ -385,7 +385,7 @@ def update_listing_image_url(db: Session, image_id: int, new_url: str):
     return None
 
 
-def get_homepage_listings(db: Session, lat: float, lng: float, limit: int = 10):
+def get_homepage_listings(db: Session, lat: float, lng: float, limit: int = 12):
     # Use the optimized get_vehicle_listings for homepage listings
     # Default to a reasonable radius for homepage, e.g., 100 km
     return get_vehicle_listings(db=db, lat=lat, lng=lng, limit=limit, radii=[100], min_results=5)
