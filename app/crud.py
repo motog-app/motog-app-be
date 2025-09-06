@@ -99,11 +99,13 @@ def get_vehicle_listings(
 
         # Haversine distance expression
         haversine_formula = 6371 * func.acos(
-            func.cos(func.radians(bindparam('lat'))) *
-            func.cos(func.radians(models.VehicleListing.latitude)) *
-            func.cos(func.radians(models.VehicleListing.longitude) - func.radians(bindparam('lng'))) +
-            func.sin(func.radians(bindparam('lat'))) *
-            func.sin(func.radians(models.VehicleListing.latitude))
+            func.greatest(-1.0, func.least(1.0, 
+                func.cos(func.radians(bindparam('lat'))) *
+                func.cos(func.radians(models.VehicleListing.latitude)) *
+                func.cos(func.radians(models.VehicleListing.longitude) - func.radians(bindparam('lng'))) +
+                func.sin(func.radians(bindparam('lat'))) *
+                func.sin(func.radians(models.VehicleListing.latitude))
+            ))
         )
 
         # Boost status subquery/CTE could be complex. We'll create a case statement.
