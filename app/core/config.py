@@ -45,10 +45,17 @@ class Settings(BaseSettings):
     CASHFREE_CLIENT_SECRET: Optional[str] = Field(None, env="CASHFREE_CLIENT_SECRET")
 
     # Email settings
-    SMTP_HOST: str = Field(..., env="SMTP_HOST")
-    SMTP_PORT: int = Field(..., env="SMTP_PORT")
-    SMTP_USER: str = Field(..., env="SMTP_USER")
-    SMTP_PASSWORD: str = Field(..., env="SMTP_PASSWORD")
+    # SMTP_HOST: str = Field(..., env="SMTP_HOST")
+    # SMTP_PORT: int = Field(..., env="SMTP_PORT")
+    # SMTP_USER: str = Field(..., env="SMTP_USER")
+    # SMTP_PASSWORD: str = Field(..., env="SMTP_PASSWORD")
     SMTP_FROM_EMAIL: EmailStr = Field(..., env="SMTP_FROM_EMAIL")
+
+    # Zoho Mail
+    ZOHO_MAIL_CLIENT_ID: Optional[str] = Field(None, env="ZOHO_MAIL_CLIENT_ID")
+    ZOHO_MAIL_CLIENT_SECRET: Optional[SecretStr] = Field(None, env="ZOHO_MAIL_CLIENT_SECRET")
+    ZOHO_MAIL_REFRESH_TOKEN: Optional[SecretStr] = Field(None, env="ZOHO_MAIL_REFRESH_TOKEN")
+    ZOHO_MAIL_REGION: Optional[str] = Field("com", env="ZOHO_MAIL_REGION")
+    ZOHO_MAIL_ACCOUNT_ID: Optional[str] = Field(None, env="ZOHO_MAIL_ACCOUNT_ID")
 
 settings = Settings()
