@@ -52,8 +52,11 @@ async def send_email(email_to: str, subject: str, body: str):
             "Content-Type": "application/json",
         }
         
+        # Format the fromAddress to include the display name
+        from_address_formatted = f'"{settings.SMTP_FROM_NAME}" <{settings.SMTP_FROM_EMAIL}>'
+
         json_payload = {
-            "fromAddress": settings.SMTP_FROM_EMAIL,
+            "fromAddress": from_address_formatted,
             "toAddress": email_to,
             "subject": subject,
             "content": body,

@@ -57,5 +57,6 @@ class Settings(BaseSettings):
     ZOHO_MAIL_REFRESH_TOKEN: Optional[SecretStr] = Field(None, env="ZOHO_MAIL_REFRESH_TOKEN")
     ZOHO_MAIL_REGION: Optional[str] = Field("com", env="ZOHO_MAIL_REGION")
     ZOHO_MAIL_ACCOUNT_ID: Optional[str] = Field(None, env="ZOHO_MAIL_ACCOUNT_ID")
+    SMTP_FROM_NAME: Optional[str] = Field("MotoG India", env="SMTP_FROM_NAME")
 
 settings = Settings()
