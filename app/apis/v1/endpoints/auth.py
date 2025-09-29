@@ -11,6 +11,8 @@ from app.helper.email import send_verification_email, send_password_reset_email
 from app.core.redis import is_email_resend_throttled
 from app.core.security import create_password_reset_token, verify_password_reset_token, get_password_hash
 from app.dependencies import get_current_user
+from app.core.google_auth import verify_google_token
+
 
 router = APIRouter()
 
@@ -49,6 +51,45 @@ def login_for_access_token(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
         )
+
+    access_token = create_access_token(
+        data={"sub": user.email}
+    )
+    return {"access_token": access_token, "token_type": "bearer", "user": user}
+
+
+@router.post("/google-login", response_model=schemas.LoginResponse)
+def google_login(
+    token_data: schemas.GoogleToken,
+    db: Session = Depends(get_db),
+) -> Any:
+    """
+    Google OAuth2 login, get an access token for future requests.
+    """
+    idinfo = verify_google_token(token_data.token)
+    if not idinfo:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Google token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    email = idinfo.get("email")
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email not found in Google token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = crud.get_user_by_email(db, email=email)
+    if not user:
+        # Create a new user
+        user_in = schemas.UserCreate(email=email, password="password") # we can set a random password
+        user = crud.create_user(db=db, user=user_in)
+        user.is_email_verified = True
+        db.commit()
+
 
     access_token = create_access_token(
         data={"sub": user.email}
@@ -181,3 +222,4 @@ async def change_password(
     db.refresh(current_user)
 
     return {"message": "Password changed successfully."}
+
