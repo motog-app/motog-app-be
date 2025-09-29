@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     EMAIL_RESEND_COOLDOWN_SECONDS: int = Field(60, env="EMAIL_RESEND_COOLDOWN_SECONDS")
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = Field(60, env="PASSWORD_RESET_TOKEN_EXPIRE_MINUTES")
 
+    # Google OAuth2 Settings
+    GOOGLE_CLIENT_ID: Optional[str] = Field(None, env="GOOGLE_CLIENT_ID")
+    GOOGLE_CLIENT_SECRET: Optional[SecretStr] = Field(None, env="GOOGLE_CLIENT_SECRET")
+    GOOGLE_REDIRECT_URI: Optional[str] = Field(None, env="GOOGLE_REDIRECT_URI")
+
     # Cloudinary Settings (Optional, as they might not always be set)
     CLOUDINARY_CLOUD_NAME: Optional[str] = Field(None, env="CLOUDINARY_CLOUD_NAME")
     CLOUDINARY_API_KEY: Optional[str] = Field(None, env="CLOUDINARY_API_KEY")

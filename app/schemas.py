@@ -180,6 +180,11 @@ class ChangePasswordRequest(BaseModel):
     current_password: str = Field(..., min_length=8)
     new_password: str = Field(..., min_length=8)
 
+
+class GoogleToken(BaseModel):
+    token: str
+
+
 # --- Boost Schemas ---
 
 class BoostPackageBase(BaseModel):
