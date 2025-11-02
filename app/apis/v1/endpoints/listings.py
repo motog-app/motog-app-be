@@ -2,7 +2,7 @@ from typing import List, Optional, Any
 
 from fastapi import (
     APIRouter, Depends, HTTPException, status,
-    File, UploadFile, Form
+    File, UploadFile, Form, BackgroundTasks
 )
 from sqlalchemy.orm import Session
 import cloudinary
@@ -113,11 +113,18 @@ def read_listings(
 
 @router.get("/{listing_id}", response_model=schemas.VehicleListing)
 def read_listing(listing_id: int,
+                 background_tasks: BackgroundTasks,
                  db: Session = Depends(get_db),
                  current_user: models.User = Depends(get_current_user_optional)) -> Any:
     listing = crud.get_listing_by_id(db, listing_id=listing_id)
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
+
+    # Add a background task to record the view
+    background_tasks.add_task(
+        crud.create_listing_view, db, listing_id=listing_id, user_id=current_user.id if current_user else None
+    )
+
     enrich_listing(listing, db)
     if not current_user:
         listing.owner_email = "please@log.in"

@@ -215,3 +215,45 @@ class UserBoost(UserBoostBase):
 
     class Config:
         from_attributes = True
+
+
+# --- Stats Schemas ---
+
+class UserActivityBase(BaseModel):
+    activity_type: str
+    details: Optional[dict] = None
+
+
+class UserActivityCreate(UserActivityBase):
+    user_id: int
+
+
+class UserActivity(UserActivityBase):
+    id: int
+    user_id: int
+    timestamp: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ListingViewBase(BaseModel):
+    listing_id: int
+    user_id: Optional[int] = None
+
+
+class ListingViewCreate(ListingViewBase):
+    pass
+
+
+class ListingView(ListingViewBase):
+    id: int
+    timestamp: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ListingStats(BaseModel):
+    total_views: int
+    views_last_7_days: int
