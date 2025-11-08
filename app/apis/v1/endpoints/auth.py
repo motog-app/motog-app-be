@@ -1,5 +1,5 @@
 # backend/app/apis/v1/endpoints/auth.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import Any
@@ -35,7 +35,7 @@ async def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_d
 
 @router.post("/login", response_model=schemas.LoginResponse)
 def login_for_access_token(
-    db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()
+    background_tasks: BackgroundTasks, db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()
 ) -> Any:
     """
     OAuth2 compatible token login, get an access token for future requests.
@@ -52,6 +52,11 @@ def login_for_access_token(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
         )
 
+    # Add a background task to record the login
+    background_tasks.add_task(
+        crud.create_user_activity, db, user_id=user.id, activity_type=models.UserActivityTypeEnum.login
+    )
+
     access_token = create_access_token(
         data={"sub": user.email}
     )
@@ -61,6 +66,7 @@ def login_for_access_token(
 @router.post("/google-login", response_model=schemas.LoginResponse)
 def google_login(
     token_data: schemas.GoogleToken,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> Any:
     """
@@ -90,6 +96,10 @@ def google_login(
         user.is_email_verified = True
         db.commit()
 
+    # Add a background task to record the login
+    background_tasks.add_task(
+        crud.create_user_activity, db, user_id=user.id, activity_type=models.UserActivityTypeEnum.login
+    )
 
     access_token = create_access_token(
         data={"sub": user.email}

@@ -468,3 +468,39 @@ def is_listing_boosted(db: Session, listing_id: int, user_id: int) -> bool:
     ).first()
 
     return bundle_boost is not None
+
+
+# --- Stats CRUD ---
+
+def create_user_activity(db: Session, user_id: int, activity_type: models.UserActivityTypeEnum, details: Optional[dict] = None):
+    db_user_activity = models.UserActivity(
+        user_id=user_id,
+        activity_type=activity_type,
+        details=details
+    )
+    db.add(db_user_activity)
+    db.commit()
+    db.refresh(db_user_activity)
+    return db_user_activity
+
+
+def create_listing_view(db: Session, listing_id: int, user_id: Optional[int] = None):
+    db_listing_view = models.ListingView(
+        listing_id=listing_id,
+        user_id=user_id
+    )
+    db.add(db_listing_view)
+    db.commit()
+    db.refresh(db_listing_view)
+    return db_listing_view
+
+
+def get_total_listing_views(db: Session, listing_id: int) -> int:
+    return db.query(models.ListingView).filter(models.ListingView.listing_id == listing_id).count()
+
+
+def get_listing_views_last_n_days(db: Session, listing_id: int, days: int) -> int:
+    return db.query(models.ListingView).filter(
+        models.ListingView.listing_id == listing_id,
+        models.ListingView.timestamp >= datetime.utcnow() - timedelta(days=days)
+    ).count()

@@ -35,6 +35,8 @@ class User(Base):
     # Define relationship to listings
     listings = relationship("VehicleListing", back_populates="owner")
     boosts = relationship("UserBoost", back_populates="owner")
+    activities = relationship("UserActivity", back_populates="user")
+    views = relationship("ListingView", back_populates="user")
 
 
 class VehicleListing(Base):
@@ -65,6 +67,7 @@ class VehicleListing(Base):
         "ListingImage", back_populates="listing", cascade="all, delete-orphan"
     )
     boosts = relationship("UserBoost", back_populates="listing")
+    views = relationship("ListingView", back_populates="listing")
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -134,3 +137,32 @@ class UserBoost(Base):
     owner = relationship("User", back_populates="boosts")
     package = relationship("BoostPackage", back_populates="user_boosts")
     listing = relationship("VehicleListing", back_populates="boosts")
+
+
+class UserActivityTypeEnum(str, enum.Enum):
+    login = "login"
+    search = "search"
+
+
+class UserActivity(Base):
+    __tablename__ = "user_activities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    activity_type = Column(Enum(UserActivityTypeEnum), index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    details = Column(JSONB)
+
+    user = relationship("User", back_populates="activities")
+
+
+class ListingView(Base):
+    __tablename__ = "listing_views"
+
+    id = Column(Integer, primary_key=True, index=True)
+    listing_id = Column(Integer, ForeignKey("vehicle_listings.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+    listing = relationship("VehicleListing", back_populates="views")
+    user = relationship("User", back_populates="views")
