@@ -120,10 +120,15 @@ def read_listing(listing_id: int,
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
 
-    # Add a background task to record the view
-    background_tasks.add_task(
-        crud.create_listing_view, db, listing_id=listing_id, user_id=current_user.id if current_user else None
-    )
+    # Add a background task to record the view (iff viewer is not the lister)
+    if current_user and listing.user_id != current_user.id:
+        background_tasks.add_task(
+            crud.create_listing_view, db, listing_id=listing_id, user_id=current_user.id
+        )
+    if not current_user:
+        background_tasks.add_task(
+            crud.create_listing_view, db, listing_id=listing_id, user_id=None
+        )
 
     enrich_listing(listing, db)
     if not current_user:
