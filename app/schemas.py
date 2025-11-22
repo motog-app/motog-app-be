@@ -217,6 +217,34 @@ class UserBoost(UserBoostBase):
         from_attributes = True
 
 
+class BoostSubscriptionCreate(BaseModel):
+    package_id: int
+    listing_id: Optional[int] = None
+
+
+class BoostSubscriptionResponse(BaseModel):
+    order_id: str
+    razorpay_key_id: str
+    amount: float
+    currency: str
+    name: str
+    description: str
+    prefill: dict
+
+
+class BoostPaymentVerification(BaseModel):
+    razorpay_payment_id: str
+    razorpay_order_id: str
+    razorpay_signature: str
+    package_id: int
+    listing_id: Optional[int] = None
+
+
+class BoostPaymentVerificationResponse(BaseModel):
+    status: str
+    user_boost: UserBoost
+
+
 # --- Stats Schemas ---
 
 class UserActivityBase(BaseModel):
