@@ -409,8 +409,11 @@ def set_primary_image(db: Session, listing_id: int, image_id: str):
 
 # --- Boost CRUD ---
 
-def list_boost_packages(db: Session, skip: int = 0, limit: int = 10):
-    return db.query(models.BoostPackage).filter(models.BoostPackage.is_active == True).offset(skip).limit(limit).all()
+def list_boost_packages(db: Session, id: Optional[int] = None, skip: int = 0, limit: int = 10):
+    query = db.query(models.BoostPackage).filter(models.BoostPackage.is_active == True)
+    if id:
+        return query.filter(models.BoostPackage.id == id).first()
+    return query.offset(skip).limit(limit).all()
 
 def create_user_boost(db: Session, user_id: int, boost_in: schemas.UserBoostCreate):
     # 1. Get the package details
@@ -468,6 +471,45 @@ def is_listing_boosted(db: Session, listing_id: int, user_id: int) -> bool:
     ).first()
 
     return bundle_boost is not None
+
+
+async def create_boost_subscription_order(db: Session, user_id: int, boost_in: schemas.BoostSubscriptionCreate):
+    # 1. Get the package details
+    package = db.query(models.BoostPackage).filter(models.BoostPackage.id == boost_in.package_id).first()
+    if not package:
+        raise HTTPException(status_code=404, detail="Boost package not found")
+    if not package.is_active:
+        raise HTTPException(status_code=400, detail="Boost package is not active")
+
+    # 2. Validate listing for single_listing boosts
+    if package.type == 'single_listing':
+        if not boost_in.listing_id:
+            raise HTTPException(status_code=400, detail="listing_id is required for this package type")
+        listing = db.query(models.VehicleListing).filter(
+            models.VehicleListing.id == boost_in.listing_id,
+            models.VehicleListing.user_id == user_id
+        ).first()
+        if not listing:
+            raise HTTPException(status_code=404, detail="Listing not found or you do not own this listing")
+
+    # 3. Create order with payment provider
+    from app.payments import get_payment_driver
+    payment_driver = get_payment_driver("razorpay")
+    
+    order_receipt = f"boost_{user_id}_{boost_in.package_id}_{datetime.utcnow().timestamp()}"
+    
+    order = await payment_driver.create_order(
+        amount=float(package.price),
+        currency="INR",
+        receipt=order_receipt,
+        notes={
+            "user_id": user_id,
+            "package_id": boost_in.package_id,
+            "listing_id": boost_in.listing_id
+        }
+    )
+    
+    return order
 
 
 # --- Stats CRUD ---

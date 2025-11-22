@@ -47,3 +47,4 @@ alembic==1.13.1
 fastapi-mail==1.4.1
 google-api-python-client
 google-auth
+razorpay

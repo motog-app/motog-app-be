@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     CASHFREE_CLIENT_ID: Optional[str] = Field(None, env="CASHFREE_CLIENT_ID")
     CASHFREE_CLIENT_SECRET: Optional[str] = Field(None, env="CASHFREE_CLIENT_SECRET")
 
+    RAZORPAY_KEY_ID: Optional[str] = Field(None, env="RAZORPAY_KEY_ID")
+    RAZORPAY_KEY_SECRET: Optional[SecretStr] = Field(None, env="RAZORPAY_KEY_SECRET")
+
     # Email settings
     # SMTP_HOST: str = Field(..., env="SMTP_HOST")
     # SMTP_PORT: int = Field(..., env="SMTP_PORT")
