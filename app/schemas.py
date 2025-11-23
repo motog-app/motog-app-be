@@ -285,3 +285,5 @@ class ListingView(ListingViewBase):
 class ListingStats(BaseModel):
     total_views: int
     views_last_7_days: int
+    today_views: int
+    views_last_30_days: int
