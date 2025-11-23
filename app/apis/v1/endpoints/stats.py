@@ -14,8 +14,12 @@ def get_listing_stats(listing_id: int, db: Session = Depends(get_db)):
     """
     total_views = crud.get_total_listing_views(db, listing_id=listing_id)
     views_last_7_days = crud.get_listing_views_last_n_days(db, listing_id=listing_id, days=7)
+    today_views=crud.get_listing_views_last_n_days(db, listing_id=listing_id, days=1)
+    views_last_30_days=crud.get_listing_views_last_n_days(db, listing_id=listing_id, days=30)
 
     return schemas.ListingStats(
         total_views=total_views,
         views_last_7_days=views_last_7_days,
+        views_last_30_days=views_last_30_days,
+        today_views=today_views
     )
